@@ -140,8 +140,7 @@ Respond ONLY with valid JSON (no markdown):
             for c in result.get("courses", []):
                 label = priority_map.get(c.get("priority", "optional"), "⚪ 可选")
                 code = c.get("code", "")
-                url = f"https://www.handbook.unsw.edu.au/postgraduate/courses/2026/{code}"
-                with st.container(border=True):
+                url = f"https://www.handbook.unsw.edu.au/postgraduate/courses/2026/{code.lower()}"                with st.container(border=True):
                     col_a, col_b = st.columns([3, 1])
                     with col_a:
                         st.markdown(f"**{label} · {code}**")
