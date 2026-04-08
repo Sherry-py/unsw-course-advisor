@@ -1,6 +1,7 @@
 import streamlit as st
 import anthropic
 import json
+import time
 import plotly.express as px
 
 st.set_page_config(page_title="UNSW MCom 选课助手", page_icon="🎓", layout="centered")
@@ -39,54 +40,45 @@ with st.form("advisor_form"):
         label_visibility="collapsed"
     )
 
-    st.markdown("**毕业目标**")
-    st.caption("选择目标后为每个目标打分（1=不重要，5=最重要）")
-    selected_goals = st.multiselect(
-        "选择目标（可多选）",
-        ["继续读博士 PhD", "科技行业就业", "金融/投行", "咨询 Consulting",
-         "创业", "留澳工作签证", "提高 WAM", "学习 AI/数据"],
-        label_visibility="collapsed"
-    )
-    custom_goal = st.text_input("自定义目标（可选）", placeholder="例如：转型做产品经理...")
-
-    goal_weights = {}
-    if selected_goals:
-        for g in selected_goals:
-            col_name, col_score = st.columns([3, 1])
-            with col_name:
-                st.markdown(f"<div style='padding:8px 0;font-size:14px;'>{g}</div>", unsafe_allow_html=True)
-            with col_score:
-                goal_weights[g] = st.selectbox(
-                    g, [1, 2, 3, 4, 5], index=2,
-                    key=f"w_{g}", label_visibility="collapsed"
-                )
-    if custom_goal.strip():
-        col_name, col_score = st.columns([3, 1])
-        with col_name:
-            st.markdown(f"<div style='padding:8px 0;font-size:14px;'>{custom_goal.strip()}</div>", unsafe_allow_html=True)
-        with col_score:
-            goal_weights[custom_goal.strip()] = st.selectbox(
-                custom_goal.strip(), [1, 2, 3, 4, 5], index=2,
-                key="w_custom", label_visibility="collapsed"
-            )
-
     load = st.radio("每学期课程数量", ["2门", "3门", "4门"], index=1, horizontal=True)
     notes = st.text_input("其他备注（可选）", placeholder="例如：避开周五，想做研究项目...")
     submitted = st.form_submit_button("生成选课建议 →", use_container_width=True, type="primary")
 
-if goal_weights:
+st.divider()
+st.markdown("**毕业目标**")
+st.caption("第一步：选择目标；第二步：为每个目标打分")
+
+selected_goals = st.multiselect(
+    "选择目标（可多选）",
+    ["继续读博士 PhD", "科技行业就业", "金融/投行", "咨询 Consulting",
+     "创业", "留澳工作签证", "提高 WAM", "学习 AI/数据"],
+    label_visibility="collapsed"
+)
+custom_goal = st.text_input("自定义目标（可选）", placeholder="例如：转型做产品经理...")
+
+goal_weights = {}
+all_goals = selected_goals + ([custom_goal.strip()] if custom_goal.strip() else [])
+
+if all_goals:
+    st.caption("为每个目标打分（1=不重要，5=最重要）")
+    for g in all_goals:
+        col_name, col_score = st.columns([3, 1])
+        with col_name:
+            st.markdown(f"<div style='padding:6px 0;font-size:14px;'>{g}</div>", unsafe_allow_html=True)
+        with col_score:
+            goal_weights[g] = st.selectbox(
+                g, [1, 2, 3, 4, 5], index=2,
+                key=f"w_{g}", label_visibility="collapsed"
+            )
+
     fig = px.pie(
         names=list(goal_weights.keys()),
         values=list(goal_weights.values()),
         hole=0.4,
         color_discrete_sequence=px.colors.qualitative.Set3
     )
-    fig.update_layout(
-        margin=dict(t=20, b=20, l=20, r=20),
-        height=300,
-        showlegend=True,
-        legend=dict(font=dict(size=11))
-    )
+    fig.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=280,
+                      showlegend=True, legend=dict(font=dict(size=11)))
     fig.update_traces(textposition="inside", textinfo="percent+label")
     st.plotly_chart(fig, use_container_width=True)
 
@@ -120,11 +112,21 @@ Respond ONLY with valid JSON (no markdown):
     with st.spinner("AI 分析中，请稍候..."):
         try:
             client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-            message = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            for attempt in range(3):
+                try:
+                    message = client.messages.create(
+                        model="claude-sonnet-4-6",
+                        max_tokens=1024,
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    break
+                except Exception as e:
+                    if "529" in str(e) and attempt < 2:
+                        st.toast(f"服务器繁忙，3秒后重试...")
+                        time.sleep(3)
+                    else:
+                        raise e
+
             raw = message.content[0].text.replace("```json", "").replace("```", "").strip()
             result = json.loads(raw)
 
@@ -132,11 +134,7 @@ Respond ONLY with valid JSON (no markdown):
                 st.warning(result["warning"])
             st.info(result.get("summary", ""))
 
-            priority_map = {
-                "must": "🔴 必选",
-                "recommended": "🟢 强烈推荐",
-                "optional": "⚪ 可选"
-            }
+            priority_map = {"must": "🔴 必选", "recommended": "🟢 强烈推荐", "optional": "⚪ 可选"}
             for c in result.get("courses", []):
                 label = priority_map.get(c.get("priority", "optional"), "⚪ 可选")
                 code = c.get("code", "")
