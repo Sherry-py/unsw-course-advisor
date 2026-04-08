@@ -8,13 +8,104 @@ st.set_page_config(page_title="UNSW MCom 选课助手", page_icon="🎓", layout
 st.title("🎓 UNSW MCom 选课助手")
 st.caption("Master of Commerce · Course Advisor")
 
+COURSES = {
+    "Information Systems": [
+        {"code": "INFS5704", "name": "Enterprise Systems"},
+        {"code": "INFS5710", "name": "Business Intelligence and Data Warehousing"},
+        {"code": "INFS5714", "name": "Project Management in Practice"},
+        {"code": "INFS5741", "name": "Managing IT Outsourcing and Offshoring"},
+        {"code": "INFS5848", "name": "Digital Innovation and Entrepreneurship"},
+        {"code": "INFS5882", "name": "Business Process Management"},
+        {"code": "INFS6021", "name": "Audit and IT Governance"},
+        {"code": "INFS6030", "name": "Cybersecurity and Privacy"},
+        {"code": "INFS5800", "name": "Strategy, Innovation and Entrepreneurship"},
+        {"code": "COMM5111", "name": "Research Methods in Information Systems"},
+    ],
+    "Finance": [
+        {"code": "FINS5510", "name": "Personal Financial Planning"},
+        {"code": "FINS5512", "name": "Financial Markets and Institutions"},
+        {"code": "FINS5514", "name": "Capital Budgeting and Financial Decisions"},
+        {"code": "FINS5516", "name": "International Finance"},
+        {"code": "FINS5517", "name": "Investments and Portfolio Selection"},
+        {"code": "FINS5519", "name": "Derivatives and Risk Management"},
+        {"code": "FINS5535", "name": "Debt Markets and Fixed Income Securities"},
+        {"code": "FINS5536", "name": "Options, Futures and Risk Management"},
+        {"code": "FINS5542", "name": "Applied Funds Management"},
+        {"code": "FINS5568", "name": "Financial Regulation"},
+    ],
+    "Accounting": [
+        {"code": "ACCT5001", "name": "Accounting for Managerial Decisions"},
+        {"code": "ACCT5002", "name": "Financial Accounting and Reporting"},
+        {"code": "ACCT5003", "name": "Management Accounting"},
+        {"code": "ACCT5004", "name": "Auditing and Assurance Services"},
+        {"code": "ACCT5005", "name": "Corporate Governance and Accountability"},
+        {"code": "ACCT5006", "name": "Taxation Law and Practice"},
+        {"code": "ACCT5007", "name": "Advanced Financial Accounting"},
+        {"code": "ACCT5009", "name": "Sustainability and Integrated Reporting"},
+    ],
+    "Marketing": [
+        {"code": "MARK5804", "name": "Marketing Management"},
+        {"code": "MARK5806", "name": "Consumer Behaviour"},
+        {"code": "MARK5808", "name": "Marketing Research"},
+        {"code": "MARK5810", "name": "Digital Marketing"},
+        {"code": "MARK5812", "name": "Strategic Brand Management"},
+        {"code": "MARK5814", "name": "Services Marketing"},
+        {"code": "MARK5816", "name": "Business to Business Marketing"},
+        {"code": "MARK5820", "name": "International Marketing"},
+    ],
+    "Economics": [
+        {"code": "ECON5103", "name": "Business Economics"},
+        {"code": "ECON5106", "name": "Applied Econometrics for Business"},
+        {"code": "ECON5108", "name": "Industry Economics"},
+        {"code": "ECON5110", "name": "International Trade and Finance"},
+        {"code": "ECON5111", "name": "Behavioural Economics"},
+        {"code": "ECON5203", "name": "Advanced Econometrics"},
+    ],
+    "Business Analytics": [
+        {"code": "COMM5007", "name": "Data Analysis for Business"},
+        {"code": "INFS5710", "name": "Business Intelligence and Data Warehousing"},
+        {"code": "INFS5882", "name": "Business Process Management"},
+        {"code": "ECON5106", "name": "Applied Econometrics for Business"},
+        {"code": "MATH5835", "name": "Stochastic Processes"},
+        {"code": "COMP5318", "name": "Machine Learning and Data Mining"},
+    ],
+    "Human Resource Management": [
+        {"code": "MGMT5601", "name": "Human Resource Management"},
+        {"code": "MGMT5603", "name": "Employment Relations"},
+        {"code": "MGMT5605", "name": "Organisational Behaviour"},
+        {"code": "MGMT5607", "name": "Strategic Human Resource Management"},
+        {"code": "MGMT5609", "name": "Managing Diversity in Organisations"},
+        {"code": "MGMT5611", "name": "Leadership and Motivation"},
+        {"code": "MGMT5613", "name": "Negotiation and Conflict Resolution"},
+    ],
+    "International Business": [
+        {"code": "MGMT5501", "name": "International Business"},
+        {"code": "MGMT5503", "name": "Multinational Enterprise"},
+        {"code": "MARK5820", "name": "International Marketing"},
+        {"code": "FINS5516", "name": "International Finance"},
+        {"code": "ECON5110", "name": "International Trade and Finance"},
+        {"code": "MGMT5505", "name": "Global Strategy"},
+    ],
+    "General / Undecided": [
+        {"code": "COMM5000", "name": "Business Research Methods"},
+        {"code": "COMM5007", "name": "Data Analysis for Business"},
+        {"code": "ACCT5001", "name": "Accounting for Managerial Decisions"},
+        {"code": "FINS5512", "name": "Financial Markets and Institutions"},
+        {"code": "MARK5804", "name": "Marketing Management"},
+        {"code": "MGMT5605", "name": "Organisational Behaviour"},
+        {"code": "ECON5103", "name": "Business Economics"},
+        {"code": "INFS5704", "name": "Enterprise Systems"},
+    ],
+}
+
+COMMON_COURSES = [
+    {"code": "COMM5000", "name": "Business Research Methods"},
+    {"code": "COMM5007", "name": "Data Analysis for Business"},
+]
+
 col1, col2 = st.columns(2)
 with col1:
-    spec = st.selectbox("专业方向", [
-        "Information Systems", "Finance", "Accounting",
-        "Marketing", "Economics", "Business Analytics",
-        "Human Resource Management", "General / Undecided"
-    ])
+    spec = st.selectbox("专业方向", list(COURSES.keys()))
 with col2:
     term = st.selectbox("规划学期", [
         "Term 1 2026", "Term 2 2026", "Term 3 2026", "Term 1 2027"
@@ -63,7 +154,8 @@ if all_goals:
     for g in all_goals:
         col_name, col_score = st.columns([3, 1])
         with col_name:
-            st.markdown(f"<div style='padding:6px 0;font-size:14px;'>{g}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='padding:6px 0;font-size:14px;'>{g}</div>",
+                        unsafe_allow_html=True)
         with col_score:
             goal_weights[g] = st.selectbox(
                 g, [1, 2, 3, 4, 5], index=2,
@@ -91,7 +183,20 @@ if submitted:
         f"{g}（重要程度{w}/5）" for g, w in goal_weights.items()
     ]) if goal_weights else "未指定"
 
-    prompt = f"""You are a precise UNSW academic advisor for the Master of Commerce (MCom) program at UNSW Sydney.
+    available = COURSES.get(spec, [])
+    all_available = {c["code"]: c["name"] for c in COMMON_COURSES + available}
+    course_list_str = "\n".join([f"- {code}: {name}" for code, name in all_available.items()])
+
+    completed_codes = []
+    for line in courses.strip().split("\n"):
+        parts = line.strip().split()
+        if parts:
+            completed_codes.append(parts[0].upper())
+
+    eligible = {k: v for k, v in all_available.items() if k not in completed_codes}
+    eligible_str = "\n".join([f"- {code}: {name}" for code, name in eligible.items()])
+
+    prompt = f"""You are a precise UNSW academic advisor for the Master of Commerce (MCom) program.
 
 Student profile:
 - Specialization: {spec}
@@ -103,13 +208,18 @@ Student profile:
 - Courses per term: {load_num}
 - Notes: {notes.strip() if notes.strip() else '无'}
 
-Recommend exactly {load_num} real UNSW MCom courses for next term.
-Prioritise courses that best match the student's highest-weighted goals.
-Only use verified UNSW course codes such as: INFS5710, INFS5704, INFS5814, INFS6021, INFS5741, COMM5000, COMM5007, COMM5111, FINS5512, FINS5510, ACCT5001, MARK5804, ECON5103, INFS5848, INFS5882.
-Do NOT recommend courses already completed by the student.
+AVAILABLE COURSES FOR THIS STUDENT (you MUST only recommend from this list):
+{eligible_str}
+
+RULES:
+1. You MUST only use course codes from the AVAILABLE COURSES list above
+2. Do NOT invent or modify any course codes or names
+3. Use the EXACT code and name as provided in the list
+4. Recommend exactly {load_num} courses
+5. Prioritise based on the student's highest-weighted goals
 
 Respond ONLY with valid JSON (no markdown):
-{{"summary":"一句话总体建议（中文）","courses":[{{"code":"XXXX0000","name":"Full English Course Name","priority":"must|recommended|optional","reason":"2-3句中文理由，结合目标权重分析"}}],"warning":"重要提醒（中文），如无则为空字符串"}}"""
+{{"summary":"一句话总体建议（中文）","courses":[{{"code":"XXXX0000","name":"Exact Course Name From List","priority":"must|recommended|optional","reason":"2-3句中文理由，结合目标权重分析"}}],"warning":"重要提醒（中文），如无则为空字符串"}}"""
 
     with st.spinner("AI 分析中，请稍候..."):
         try:
@@ -140,7 +250,8 @@ Respond ONLY with valid JSON (no markdown):
             for c in result.get("courses", []):
                 label = priority_map.get(c.get("priority", "optional"), "⚪ 可选")
                 code = c.get("code", "")
-                url = f"https://www.handbook.unsw.edu.au/postgraduate/courses/2026/{code.lower()}"                with st.container(border=True):
+                url = f"https://www.handbook.unsw.edu.au/postgraduate/courses/2026/{code.lower()}"
+                with st.container(border=True):
                     col_a, col_b = st.columns([3, 1])
                     with col_a:
                         st.markdown(f"**{label} · {code}**")
