@@ -183,7 +183,13 @@ if submitted:
     ]) if goal_weights else "未指定"
 
     all_courses = COMMON_COURSES + COURSES.get(spec, [])
-    all_urls = {c["code"]: c["url"] for c in all_courses}
+    seen = set()
+    deduped = []
+    for c in all_courses:
+        if c["code"] not in seen:
+            seen.add(c["code"])
+            deduped.append(c)
+    all_courses = deduped
 
     completed_codes = []
     for line in courses.strip().split("\n"):
@@ -192,9 +198,10 @@ if submitted:
             completed_codes.append(parts[0].upper())
 
     eligible = [c for c in all_courses if c["code"] not in completed_codes]
-    eligible_str = "\n".join([f"- {c['code']}: {c['name']}" for c in eligible])
+    eligible_map = {c["code"]: c for c in eligible}
+    eligible_codes_str = "\n".join([f"- {c['code']}" for c in eligible])
 
-    prompt = f"""You are a precise UNSW academic advisor for the Master of Commerce (MCom) program.
+    prompt = f"""You are a UNSW MCom academic advisor.
 
 Student profile:
 - Specialization: {spec}
@@ -206,18 +213,13 @@ Student profile:
 - Courses per term: {load_num}
 - Notes: {notes.strip() if notes.strip() else '无'}
 
-AVAILABLE COURSES (you MUST only recommend from this exact list):
-{eligible_str}
+AVAILABLE COURSE CODES — select ONLY from this list, do not use any other codes:
+{eligible_codes_str}
 
-RULES:
-1. ONLY use course codes and names from the AVAILABLE COURSES list above
-2. Do NOT invent, modify, or abbreviate any course codes or names
-3. Copy the EXACT code and name as shown in the list
-4. Recommend exactly {load_num} courses
-5. Prioritise based on the student's highest-weighted goals
+Select exactly {load_num} codes from the list above that best match the student's goals.
 
 Respond ONLY with valid JSON (no markdown):
-{{"summary":"一句话总体建议（中文）","courses":[{{"code":"XXXX0000","name":"Exact Course Name From List","priority":"must|recommended|optional","reason":"2-3句中文理由，结合目标权重分析"}}],"warning":"重要提醒（中文），如无则为空字符串"}}"""
+{{"summary":"一句话总体建议（中文）","selections":[{{"code":"XXXX0000","priority":"must|recommended|optional","reason":"2-3句中文理由，结合目标权重"}}],"warning":"提醒或空字符串"}}"""
 
     with st.spinner("AI 分析中，请稍候..."):
         try:
@@ -245,18 +247,20 @@ Respond ONLY with valid JSON (no markdown):
             st.info(result.get("summary", ""))
 
             priority_map = {"must": "🔴 必选", "recommended": "🟢 强烈推荐", "optional": "⚪ 可选"}
-            for c in result.get("courses", []):
-                label = priority_map.get(c.get("priority", "optional"), "⚪ 可选")
-                code = c.get("code", "")
-                url = all_urls.get(code, "https://www.handbook.unsw.edu.au")
+            for s in result.get("selections", []):
+                code = s.get("code", "")
+                course = eligible_map.get(code)
+                if not course:
+                    continue
+                label = priority_map.get(s.get("priority", "optional"), "⚪ 可选")
                 with st.container(border=True):
                     col_a, col_b = st.columns([3, 1])
                     with col_a:
-                        st.markdown(f"**{label} · {code}**")
-                        st.markdown(f"#### {c['name']}")
-                        st.write(c["reason"])
+                        st.markdown(f"**{label} · {course['code']}**")
+                        st.markdown(f"#### {course['name']}")
+                        st.write(s["reason"])
                     with col_b:
-                        st.link_button("📖 Handbook", url, use_container_width=True)
+                        st.link_button("📖 Handbook", course["url"], use_container_width=True)
 
         except Exception as e:
             st.error(f"出错了：{e}")
