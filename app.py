@@ -10,97 +10,96 @@ st.caption("Master of Commerce · Course Advisor")
 
 COURSES = {
     "Information Systems": [
-        {"code": "INFS5704", "name": "Enterprise Systems"},
-        {"code": "INFS5710", "name": "Business Intelligence and Data Warehousing"},
-        {"code": "INFS5714", "name": "Project Management in Practice"},
-        {"code": "INFS5741", "name": "Managing IT Outsourcing and Offshoring"},
-        {"code": "INFS5848", "name": "Digital Innovation and Entrepreneurship"},
-        {"code": "INFS5882", "name": "Business Process Management"},
-        {"code": "INFS6021", "name": "Audit and IT Governance"},
-        {"code": "INFS6030", "name": "Cybersecurity and Privacy"},
-        {"code": "INFS5800", "name": "Strategy, Innovation and Entrepreneurship"},
-        {"code": "COMM5111", "name": "Research Methods in Information Systems"},
+        {"code": "INFS5704", "name": "Enterprise Systems", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5704"},
+        {"code": "INFS5710", "name": "Business Intelligence and Data Warehousing", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5710"},
+        {"code": "INFS5714", "name": "Project Management in Practice", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5714"},
+        {"code": "INFS5741", "name": "Managing IT Outsourcing and Offshoring", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5741"},
+        {"code": "INFS5848", "name": "Digital Innovation and Entrepreneurship", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5848"},
+        {"code": "INFS5882", "name": "Business Process Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5882"},
+        {"code": "INFS6021", "name": "Audit and IT Governance", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS6021"},
+        {"code": "INFS6030", "name": "Cybersecurity and Privacy", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS6030"},
+        {"code": "INFS5800", "name": "Strategy, Innovation and Entrepreneurship", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5800"},
+        {"code": "COMM5111", "name": "Research Methods in Information Systems", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5111"},
     ],
     "Finance": [
-        {"code": "FINS5510", "name": "Personal Financial Planning"},
-        {"code": "FINS5512", "name": "Financial Markets and Institutions"},
-        {"code": "FINS5514", "name": "Capital Budgeting and Financial Decisions"},
-        {"code": "FINS5516", "name": "International Finance"},
-        {"code": "FINS5517", "name": "Investments and Portfolio Selection"},
-        {"code": "FINS5519", "name": "Derivatives and Risk Management"},
-        {"code": "FINS5535", "name": "Debt Markets and Fixed Income Securities"},
-        {"code": "FINS5536", "name": "Options, Futures and Risk Management"},
-        {"code": "FINS5542", "name": "Applied Funds Management"},
-        {"code": "FINS5568", "name": "Financial Regulation"},
+        {"code": "FINS5510", "name": "Personal Financial Planning", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5510"},
+        {"code": "FINS5512", "name": "Financial Markets and Institutions", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5512"},
+        {"code": "FINS5514", "name": "Capital Budgeting and Financial Decisions", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5514"},
+        {"code": "FINS5516", "name": "International Finance", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5516"},
+        {"code": "FINS5517", "name": "Investments and Portfolio Selection", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5517"},
+        {"code": "FINS5519", "name": "Derivatives and Risk Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5519"},
+        {"code": "FINS5535", "name": "Debt Markets and Fixed Income Securities", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5535"},
+        {"code": "FINS5536", "name": "Options, Futures and Risk Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5536"},
+        {"code": "FINS5542", "name": "Applied Funds Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5542"},
+        {"code": "FINS5568", "name": "Financial Regulation", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5568"},
     ],
     "Accounting": [
-        {"code": "ACCT5001", "name": "Accounting for Managerial Decisions"},
-        {"code": "ACCT5002", "name": "Financial Accounting and Reporting"},
-        {"code": "ACCT5003", "name": "Management Accounting"},
-        {"code": "ACCT5004", "name": "Auditing and Assurance Services"},
-        {"code": "ACCT5005", "name": "Corporate Governance and Accountability"},
-        {"code": "ACCT5006", "name": "Taxation Law and Practice"},
-        {"code": "ACCT5007", "name": "Advanced Financial Accounting"},
-        {"code": "ACCT5009", "name": "Sustainability and Integrated Reporting"},
+        {"code": "ACCT5001", "name": "Accounting for Managerial Decisions", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5001"},
+        {"code": "ACCT5002", "name": "Financial Accounting and Reporting", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5002"},
+        {"code": "ACCT5003", "name": "Management Accounting", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5003"},
+        {"code": "ACCT5004", "name": "Auditing and Assurance Services", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5004"},
+        {"code": "ACCT5005", "name": "Corporate Governance and Accountability", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5005"},
+        {"code": "ACCT5006", "name": "Taxation Law and Practice", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5006"},
+        {"code": "ACCT5007", "name": "Advanced Financial Accounting", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5007"},
+        {"code": "ACCT5009", "name": "Sustainability and Integrated Reporting", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5009"},
     ],
     "Marketing": [
-        {"code": "MARK5804", "name": "Marketing Management"},
-        {"code": "MARK5806", "name": "Consumer Behaviour"},
-        {"code": "MARK5808", "name": "Marketing Research"},
-        {"code": "MARK5810", "name": "Digital Marketing"},
-        {"code": "MARK5812", "name": "Strategic Brand Management"},
-        {"code": "MARK5814", "name": "Services Marketing"},
-        {"code": "MARK5816", "name": "Business to Business Marketing"},
-        {"code": "MARK5820", "name": "International Marketing"},
+        {"code": "MARK5804", "name": "Marketing Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5804"},
+        {"code": "MARK5806", "name": "Consumer Behaviour", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5806"},
+        {"code": "MARK5808", "name": "Marketing Research", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5808"},
+        {"code": "MARK5810", "name": "Digital Marketing", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5810"},
+        {"code": "MARK5812", "name": "Strategic Brand Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5812"},
+        {"code": "MARK5814", "name": "Services Marketing", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5814"},
+        {"code": "MARK5816", "name": "Business to Business Marketing", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5816"},
+        {"code": "MARK5820", "name": "International Marketing", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5820"},
     ],
     "Economics": [
-        {"code": "ECON5103", "name": "Business Economics"},
-        {"code": "ECON5106", "name": "Applied Econometrics for Business"},
-        {"code": "ECON5108", "name": "Industry Economics"},
-        {"code": "ECON5110", "name": "International Trade and Finance"},
-        {"code": "ECON5111", "name": "Behavioural Economics"},
-        {"code": "ECON5203", "name": "Advanced Econometrics"},
+        {"code": "ECON5103", "name": "Business Economics", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5103"},
+        {"code": "ECON5106", "name": "Applied Econometrics for Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5106"},
+        {"code": "ECON5108", "name": "Industry Economics", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5108"},
+        {"code": "ECON5110", "name": "International Trade and Finance", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5110"},
+        {"code": "ECON5111", "name": "Behavioural Economics", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5111"},
+        {"code": "ECON5203", "name": "Advanced Econometrics", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5203"},
     ],
     "Business Analytics": [
-        {"code": "COMM5007", "name": "Data Analysis for Business"},
-        {"code": "INFS5710", "name": "Business Intelligence and Data Warehousing"},
-        {"code": "INFS5882", "name": "Business Process Management"},
-        {"code": "ECON5106", "name": "Applied Econometrics for Business"},
-        {"code": "MATH5835", "name": "Stochastic Processes"},
-        {"code": "COMP5318", "name": "Machine Learning and Data Mining"},
+        {"code": "COMM5007", "name": "Data Analysis for Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5007"},
+        {"code": "INFS5710", "name": "Business Intelligence and Data Warehousing", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5710"},
+        {"code": "INFS5882", "name": "Business Process Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5882"},
+        {"code": "ECON5106", "name": "Applied Econometrics for Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5106"},
+        {"code": "COMP5318", "name": "Machine Learning and Data Mining", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMP5318"},
     ],
     "Human Resource Management": [
-        {"code": "MGMT5601", "name": "Human Resource Management"},
-        {"code": "MGMT5603", "name": "Employment Relations"},
-        {"code": "MGMT5605", "name": "Organisational Behaviour"},
-        {"code": "MGMT5607", "name": "Strategic Human Resource Management"},
-        {"code": "MGMT5609", "name": "Managing Diversity in Organisations"},
-        {"code": "MGMT5611", "name": "Leadership and Motivation"},
-        {"code": "MGMT5613", "name": "Negotiation and Conflict Resolution"},
+        {"code": "MGMT5601", "name": "Human Resource Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5601"},
+        {"code": "MGMT5603", "name": "Employment Relations", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5603"},
+        {"code": "MGMT5605", "name": "Organisational Behaviour", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5605"},
+        {"code": "MGMT5607", "name": "Strategic Human Resource Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5607"},
+        {"code": "MGMT5609", "name": "Managing Diversity in Organisations", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5609"},
+        {"code": "MGMT5611", "name": "Leadership and Motivation", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5611"},
+        {"code": "MGMT5613", "name": "Negotiation and Conflict Resolution", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5613"},
     ],
     "International Business": [
-        {"code": "MGMT5501", "name": "International Business"},
-        {"code": "MGMT5503", "name": "Multinational Enterprise"},
-        {"code": "MARK5820", "name": "International Marketing"},
-        {"code": "FINS5516", "name": "International Finance"},
-        {"code": "ECON5110", "name": "International Trade and Finance"},
-        {"code": "MGMT5505", "name": "Global Strategy"},
+        {"code": "MGMT5501", "name": "International Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5501"},
+        {"code": "MGMT5503", "name": "Multinational Enterprise", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5503"},
+        {"code": "MARK5820", "name": "International Marketing", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5820"},
+        {"code": "FINS5516", "name": "International Finance", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5516"},
+        {"code": "ECON5110", "name": "International Trade and Finance", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5110"},
+        {"code": "MGMT5505", "name": "Global Strategy", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5505"},
     ],
     "General / Undecided": [
-        {"code": "COMM5000", "name": "Business Research Methods"},
-        {"code": "COMM5007", "name": "Data Analysis for Business"},
-        {"code": "ACCT5001", "name": "Accounting for Managerial Decisions"},
-        {"code": "FINS5512", "name": "Financial Markets and Institutions"},
-        {"code": "MARK5804", "name": "Marketing Management"},
-        {"code": "MGMT5605", "name": "Organisational Behaviour"},
-        {"code": "ECON5103", "name": "Business Economics"},
-        {"code": "INFS5704", "name": "Enterprise Systems"},
+        {"code": "COMM5000", "name": "Business Research Methods", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5000"},
+        {"code": "COMM5007", "name": "Data Analysis for Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5007"},
+        {"code": "ACCT5001", "name": "Accounting for Managerial Decisions", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5001"},
+        {"code": "FINS5512", "name": "Financial Markets and Institutions", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5512"},
+        {"code": "MARK5804", "name": "Marketing Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MARK5804"},
+        {"code": "MGMT5605", "name": "Organisational Behaviour", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5605"},
+        {"code": "ECON5103", "name": "Business Economics", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5103"},
+        {"code": "INFS5704", "name": "Enterprise Systems", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5704"},
     ],
 }
 
 COMMON_COURSES = [
-    {"code": "COMM5000", "name": "Business Research Methods"},
-    {"code": "COMM5007", "name": "Data Analysis for Business"},
+    {"code": "COMM5000", "name": "Business Research Methods", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5000"},
+    {"code": "COMM5007", "name": "Data Analysis for Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5007"},
 ]
 
 col1, col2 = st.columns(2)
@@ -183,9 +182,8 @@ if submitted:
         f"{g}（重要程度{w}/5）" for g, w in goal_weights.items()
     ]) if goal_weights else "未指定"
 
-    available = COURSES.get(spec, [])
-    all_available = {c["code"]: c["name"] for c in COMMON_COURSES + available}
-    course_list_str = "\n".join([f"- {code}: {name}" for code, name in all_available.items()])
+    all_courses = COMMON_COURSES + COURSES.get(spec, [])
+    all_urls = {c["code"]: c["url"] for c in all_courses}
 
     completed_codes = []
     for line in courses.strip().split("\n"):
@@ -193,8 +191,8 @@ if submitted:
         if parts:
             completed_codes.append(parts[0].upper())
 
-    eligible = {k: v for k, v in all_available.items() if k not in completed_codes}
-    eligible_str = "\n".join([f"- {code}: {name}" for code, name in eligible.items()])
+    eligible = [c for c in all_courses if c["code"] not in completed_codes]
+    eligible_str = "\n".join([f"- {c['code']}: {c['name']}" for c in eligible])
 
     prompt = f"""You are a precise UNSW academic advisor for the Master of Commerce (MCom) program.
 
@@ -208,13 +206,13 @@ Student profile:
 - Courses per term: {load_num}
 - Notes: {notes.strip() if notes.strip() else '无'}
 
-AVAILABLE COURSES FOR THIS STUDENT (you MUST only recommend from this list):
+AVAILABLE COURSES (you MUST only recommend from this exact list):
 {eligible_str}
 
 RULES:
-1. You MUST only use course codes from the AVAILABLE COURSES list above
-2. Do NOT invent or modify any course codes or names
-3. Use the EXACT code and name as provided in the list
+1. ONLY use course codes and names from the AVAILABLE COURSES list above
+2. Do NOT invent, modify, or abbreviate any course codes or names
+3. Copy the EXACT code and name as shown in the list
 4. Recommend exactly {load_num} courses
 5. Prioritise based on the student's highest-weighted goals
 
@@ -250,7 +248,7 @@ Respond ONLY with valid JSON (no markdown):
             for c in result.get("courses", []):
                 label = priority_map.get(c.get("priority", "optional"), "⚪ 可选")
                 code = c.get("code", "")
-                url = f"https://www.handbook.unsw.edu.au/postgraduate/courses/2026/{code.lower()}"
+                url = all_urls.get(code, "https://www.handbook.unsw.edu.au")
                 with st.container(border=True):
                     col_a, col_b = st.columns([3, 1])
                     with col_a:
