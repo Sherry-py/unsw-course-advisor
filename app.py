@@ -4,9 +4,97 @@ import json
 import time
 import plotly.express as px
 
-st.set_page_config(page_title="UNSW MCom 选课助手", page_icon="🎓", layout="centered")
-st.title("🎓 UNSW MCom 选课助手")
-st.caption("Master of Commerce · Course Advisor")
+st.set_page_config(page_title="UNSW MCom Course Advisor", page_icon="🎓", layout="centered")
+
+# ── Language toggle ──────────────────────────────────────────────────────────
+lang = st.radio("", ["中文", "English"], horizontal=True, key="lang",
+                label_visibility="collapsed")
+
+T = {
+    "中文": {
+        "title": "🎓 UNSW MCom 选课助手",
+        "caption": "Master of Commerce · Course Advisor",
+        "spec_label": "专业方向（可选 1-2 个）",
+        "spec_placeholder": "选择专业方向...",
+        "term_label": "规划学期",
+        "wam_label": "当前 WAM（可选）",
+        "wam_placeholder": "例如 82",
+        "uoc_label": "剩余学分",
+        "completed_header": "**已修课程**",
+        "completed_caption": "从列表中选择已修过的课程",
+        "completed_placeholder": "选择已修课程（可多选）",
+        "load_label": "每学期课程数量",
+        "load_options": ["2门", "3门", "4门"],
+        "notes_label": "其他备注（可选）",
+        "notes_placeholder": "例如：避开周五，想做研究项目...",
+        "goals_header": "**毕业目标**",
+        "goals_caption": "第一步：选择目标；第二步：为每个目标打分",
+        "goals_options": ["继续读博士 PhD", "科技行业就业", "金融/投行", "咨询 Consulting",
+                          "创业", "留澳工作签证", "提高 WAM", "学习 AI/数据"],
+        "custom_goal_label": "自定义目标（可选）",
+        "custom_goal_placeholder": "例如：转型做产品经理...",
+        "weights_caption": "为每个目标打分（1=不重要，5=最重要）",
+        "submit_btn": "生成选课建议 →",
+        "err_no_spec": "请至少选择一个专业方向",
+        "spinner": "AI 分析中，请稍候...",
+        "retry_toast": "服务器繁忙，3秒后重试...",
+        "priority_map": {"must": "🔴 必选", "recommended": "🟢 强烈推荐", "optional": "⚪ 可选"},
+        "handbook_btn": "📖 Handbook",
+        "no_valid_courses": "AI 未能返回有效课程代码，请重试。",
+        "goals_str_fmt": lambda gw: "、".join([f"{g}（重要程度{w}/5）" for g, w in gw.items()]),
+        "goals_none": "未指定",
+        "wam_none": "未提供",
+        "notes_none": "无",
+        "ai_lang": "Chinese",
+        "summary_field": "一句话总体建议（中文）",
+        "reason_field": "2-3句中文理由，结合目标权重",
+        "warning_field": "提醒或空字符串",
+    },
+    "English": {
+        "title": "🎓 UNSW MCom Course Advisor",
+        "caption": "Master of Commerce · Course Advisor",
+        "spec_label": "Specialization (select 1-2)",
+        "spec_placeholder": "Choose specialization...",
+        "term_label": "Planning Term",
+        "wam_label": "Current WAM (optional)",
+        "wam_placeholder": "e.g. 82",
+        "uoc_label": "Remaining UOC",
+        "completed_header": "**Completed Courses**",
+        "completed_caption": "Select courses you have already completed",
+        "completed_placeholder": "Select completed courses (multi-select)",
+        "load_label": "Courses per term",
+        "load_options": ["2 courses", "3 courses", "4 courses"],
+        "notes_label": "Additional notes (optional)",
+        "notes_placeholder": "e.g. avoid Fridays, interested in research...",
+        "goals_header": "**Graduation Goals**",
+        "goals_caption": "Step 1: Select goals; Step 2: Rate each goal",
+        "goals_options": ["Continue to PhD", "Tech industry jobs", "Finance / Investment Banking",
+                          "Consulting", "Entrepreneurship", "Australian work visa",
+                          "Improve WAM", "Learn AI / Data"],
+        "custom_goal_label": "Custom goal (optional)",
+        "custom_goal_placeholder": "e.g. transition to product management...",
+        "weights_caption": "Rate each goal (1 = not important, 5 = most important)",
+        "submit_btn": "Generate Course Recommendations →",
+        "err_no_spec": "Please select at least one specialization",
+        "spinner": "AI is analysing your profile, please wait...",
+        "retry_toast": "Server busy, retrying in 3s...",
+        "priority_map": {"must": "🔴 Must take", "recommended": "🟢 Recommended", "optional": "⚪ Optional"},
+        "handbook_btn": "📖 Handbook",
+        "no_valid_courses": "AI did not return valid course codes. Please try again.",
+        "goals_str_fmt": lambda gw: ", ".join([f"{g} (importance {w}/5)" for g, w in gw.items()]),
+        "goals_none": "Not specified",
+        "wam_none": "Not provided",
+        "notes_none": "None",
+        "ai_lang": "English",
+        "summary_field": "one-sentence overall recommendation (English)",
+        "reason_field": "2-3 sentence reason in English, referencing goal weights",
+        "warning_field": "warning message or empty string",
+    },
+}
+
+t = T[lang]
+st.title(t["title"])
+st.caption(t["caption"])
 
 COURSES = {
     "Accounting": [
@@ -164,54 +252,53 @@ ALL_COURSE_CODES = sorted(ALL_COURSES_DICT.keys())
 col1, col2 = st.columns(2)
 with col1:
     specs = st.multiselect(
-        "专业方向（可选 1-2 个）",
+        t["spec_label"],
         list(COURSES.keys()),
         max_selections=2,
-        placeholder="选择专业方向...",
+        placeholder=t["spec_placeholder"],
     )
 with col2:
-    term = st.selectbox("规划学期", [
+    term = st.selectbox(t["term_label"], [
         "Term 1 2026", "Term 2 2026", "Term 3 2026", "Term 1 2027"
     ])
 
 col3, col4 = st.columns(2)
 with col3:
-    wam = st.text_input("当前 WAM（可选）", placeholder="例如 82")
+    wam = st.text_input(t["wam_label"], placeholder=t["wam_placeholder"])
 with col4:
-    credits = st.selectbox("剩余学分", [
+    credits = st.selectbox(t["uoc_label"], [
         "96 UOC", "72 UOC", "48 UOC", "36 UOC", "24 UOC", "12 UOC"
     ])
 
-st.markdown("**已修课程**")
-st.caption("从列表中选择已修过的课程")
+st.markdown(t["completed_header"])
+st.caption(t["completed_caption"])
 completed_courses = st.multiselect(
-    "已修课程",
+    t["completed_header"],
     options=ALL_COURSE_CODES,
     format_func=lambda code: f"{code} · {ALL_COURSES_DICT[code]['name']}",
-    placeholder="选择已修课程（可多选）",
+    placeholder=t["completed_placeholder"],
     label_visibility="collapsed",
 )
 
-load = st.radio("每学期课程数量", ["2门", "3门", "4门"], index=1, horizontal=True)
-notes = st.text_input("其他备注（可选）", placeholder="例如：避开周五，想做研究项目...")
+load = st.radio(t["load_label"], t["load_options"], index=1, horizontal=True)
+notes = st.text_input(t["notes_label"], placeholder=t["notes_placeholder"])
 
 st.divider()
-st.markdown("**毕业目标**")
-st.caption("第一步：选择目标；第二步：为每个目标打分")
+st.markdown(t["goals_header"])
+st.caption(t["goals_caption"])
 
 selected_goals = st.multiselect(
-    "选择目标（可多选）",
-    ["继续读博士 PhD", "科技行业就业", "金融/投行", "咨询 Consulting",
-     "创业", "留澳工作签证", "提高 WAM", "学习 AI/数据"],
+    t["goals_header"],
+    t["goals_options"],
     label_visibility="collapsed"
 )
-custom_goal = st.text_input("自定义目标（可选）", placeholder="例如：转型做产品经理...")
+custom_goal = st.text_input(t["custom_goal_label"], placeholder=t["custom_goal_placeholder"])
 
 goal_weights = {}
 all_goals = selected_goals + ([custom_goal.strip()] if custom_goal.strip() else [])
 
 if all_goals:
-    st.caption("为每个目标打分（1=不重要，5=最重要）")
+    st.caption(t["weights_caption"])
     for g in all_goals:
         col_name, col_score = st.columns([3, 1])
         with col_name:
@@ -235,18 +322,16 @@ if all_goals:
     st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
-submitted = st.button("生成选课建议 →", use_container_width=True, type="primary")
+submitted = st.button(t["submit_btn"], use_container_width=True, type="primary")
 
 if submitted:
     if not specs:
-        st.error("请至少选择一个专业方向")
+        st.error(t["err_no_spec"])
         st.stop()
 
-    wam_str = wam.strip() if wam.strip() else "未提供"
+    wam_str = wam.strip() if wam.strip() else t["wam_none"]
     load_num = load[0]
-    goals_str = "、".join([
-        f"{g}（重要程度{w}/5）" for g, w in goal_weights.items()
-    ]) if goal_weights else "未指定"
+    goals_str = t["goals_str_fmt"](goal_weights) if goal_weights else t["goals_none"]
 
     # Combine courses from all selected specializations
     spec_pool = []
@@ -265,12 +350,12 @@ if submitted:
     completed_codes = set(completed_courses)
     eligible = [c for c in all_courses if c["code"] not in completed_codes]
     eligible_map = {c["code"]: c for c in eligible}
-    # Include names in the list so the AI can reason about course content
     eligible_codes_str = "\n".join([f"- {c['code']}: {c['name']}" for c in eligible])
 
     spec_label = " & ".join(specs)
+    response_lang = t["ai_lang"]
 
-    prompt = f"""You are a UNSW MCom academic advisor.
+    prompt = f"""You are a UNSW MCom academic advisor. Respond in {response_lang}.
 
 Student profile:
 - Specialization: {spec_label}
@@ -280,7 +365,7 @@ Student profile:
 - Completed courses: {", ".join(completed_codes) if completed_codes else "None"}
 - Career goals (with importance weights): {goals_str}
 - Courses per term: {load_num}
-- Notes: {notes.strip() if notes.strip() else "None"}
+- Notes: {notes.strip() if notes.strip() else t["notes_none"]}
 
 AVAILABLE COURSES — you MUST select ONLY from the course codes listed below.
 Do NOT invent, modify, or abbreviate any course code.
@@ -291,9 +376,9 @@ Select exactly {load_num} course codes from the list above that best match the s
 CRITICAL: Every "code" value in your JSON must exactly match one of the codes listed above. Any code not in the list will be discarded.
 
 Respond ONLY with valid JSON (no markdown):
-{{"summary":"一句话总体建议（中文）","selections":[{{"code":"XXXX0000","priority":"must|recommended|optional","reason":"2-3句中文理由，结合目标权重"}}],"warning":"提醒或空字符串"}}"""
+{{"summary":"{t['summary_field']}","selections":[{{"code":"XXXX0000","priority":"must|recommended|optional","reason":"{t['reason_field']}"}}],"warning":"{t['warning_field']}"}}"""
 
-    with st.spinner("AI 分析中，请稍候..."):
+    with st.spinner(t["spinner"]):
         try:
             client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
             for attempt in range(3):
@@ -306,7 +391,7 @@ Respond ONLY with valid JSON (no markdown):
                     break
                 except Exception as e:
                     if "529" in str(e) and attempt < 2:
-                        st.toast("服务器繁忙，3秒后重试...")
+                        st.toast(t["retry_toast"])
                         time.sleep(3)
                     else:
                         raise e
@@ -318,7 +403,7 @@ Respond ONLY with valid JSON (no markdown):
                 st.warning(result["warning"])
             st.info(result.get("summary", ""))
 
-            priority_map = {"must": "🔴 必选", "recommended": "🟢 强烈推荐", "optional": "⚪ 可选"}
+            priority_map = t["priority_map"]
             valid_shown = 0
             for s in result.get("selections", []):
                 code = s.get("code", "")
@@ -326,7 +411,7 @@ Respond ONLY with valid JSON (no markdown):
                 if not course:
                     continue
                 valid_shown += 1
-                label = priority_map.get(s.get("priority", "optional"), "⚪ 可选")
+                label = priority_map.get(s.get("priority", "optional"), priority_map["optional"])
                 with st.container(border=True):
                     col_a, col_b = st.columns([3, 1])
                     with col_a:
@@ -334,10 +419,10 @@ Respond ONLY with valid JSON (no markdown):
                         st.markdown(f"#### {course['name']}")
                         st.write(s["reason"])
                     with col_b:
-                        st.link_button("📖 Handbook", course["url"], use_container_width=True)
+                        st.link_button(t["handbook_btn"], course["url"], use_container_width=True)
 
             if valid_shown == 0:
-                st.error("AI 未能返回有效课程代码，请重试。")
+                st.error(t["no_valid_courses"])
 
         except Exception as e:
-            st.error(f"出错了：{e}")
+            st.error(f"Error: {e}")
