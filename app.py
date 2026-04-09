@@ -102,9 +102,25 @@ COMMON_COURSES = [
     {"code": "COMM5007", "name": "Data Analysis for Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5007"},
 ]
 
+# Deduplicated lookup of every course across all specializations + common courses
+ALL_COURSES_DICT = {}
+for _spec_courses in COURSES.values():
+    for _c in _spec_courses:
+        if _c["code"] not in ALL_COURSES_DICT:
+            ALL_COURSES_DICT[_c["code"]] = _c
+for _c in COMMON_COURSES:
+    if _c["code"] not in ALL_COURSES_DICT:
+        ALL_COURSES_DICT[_c["code"]] = _c
+ALL_COURSE_CODES = sorted(ALL_COURSES_DICT.keys())
+
 col1, col2 = st.columns(2)
 with col1:
-    spec = st.selectbox("专业方向", list(COURSES.keys()))
+    specs = st.multiselect(
+        "专业方向（可选 1-2 个）",
+        list(COURSES.keys()),
+        max_selections=2,
+        placeholder="选择专业方向...",
+    )
 with col2:
     term = st.selectbox("规划学期", [
         "Term 1 2026", "Term 2 2026", "Term 3 2026", "Term 1 2027"
@@ -119,15 +135,13 @@ with col4:
     ])
 
 st.markdown("**已修课程**")
-st.caption("每行一门，格式：课程代码 + 空格 + 成绩（HD / DN / CR / PS）")
-if st.button("📋 填入格式示例"):
-    st.session_state.course_template = "COMM5000 HD\nCOMM5007 DN\nINFS5704 CR"
-courses = st.text_area(
+st.caption("从列表中选择已修过的课程")
+completed_courses = st.multiselect(
     "已修课程",
-    value=st.session_state.get("course_template", ""),
-    placeholder="COMM5000 HD\nINFS5704 CR\nFINS5512 DN",
-    height=120,
-    label_visibility="collapsed"
+    options=ALL_COURSE_CODES,
+    format_func=lambda code: f"{code} · {ALL_COURSES_DICT[code]['name']}",
+    placeholder="选择已修课程（可多选）",
+    label_visibility="collapsed",
 )
 
 load = st.radio("每学期课程数量", ["2门", "3门", "4门"], index=1, horizontal=True)
@@ -176,13 +190,22 @@ st.divider()
 submitted = st.button("生成选课建议 →", use_container_width=True, type="primary")
 
 if submitted:
+    if not specs:
+        st.error("请至少选择一个专业方向")
+        st.stop()
+
     wam_str = wam.strip() if wam.strip() else "未提供"
     load_num = load[0]
     goals_str = "、".join([
         f"{g}（重要程度{w}/5）" for g, w in goal_weights.items()
     ]) if goal_weights else "未指定"
 
-    all_courses = COMMON_COURSES + COURSES.get(spec, [])
+    # Combine courses from all selected specializations
+    spec_pool = []
+    for s in specs:
+        spec_pool.extend(COURSES.get(s, []))
+
+    all_courses = COMMON_COURSES + spec_pool
     seen = set()
     deduped = []
     for c in all_courses:
@@ -191,32 +214,33 @@ if submitted:
             deduped.append(c)
     all_courses = deduped
 
-    completed_codes = []
-    for line in courses.strip().split("\n"):
-        parts = line.strip().split()
-        if parts:
-            completed_codes.append(parts[0].upper())
-
+    completed_codes = set(completed_courses)
     eligible = [c for c in all_courses if c["code"] not in completed_codes]
     eligible_map = {c["code"]: c for c in eligible}
-    eligible_codes_str = "\n".join([f"- {c['code']}" for c in eligible])
+    # Include names in the list so the AI can reason about course content
+    eligible_codes_str = "\n".join([f"- {c['code']}: {c['name']}" for c in eligible])
+
+    spec_label = " & ".join(specs)
 
     prompt = f"""You are a UNSW MCom academic advisor.
 
 Student profile:
-- Specialization: {spec}
+- Specialization: {spec_label}
 - Planning for: {term}
 - Current WAM: {wam_str}
 - Remaining UOC: {credits}
-- Completed courses: {courses.strip() if courses.strip() else '暂无'}
+- Completed courses: {", ".join(completed_codes) if completed_codes else "None"}
 - Career goals (with importance weights): {goals_str}
 - Courses per term: {load_num}
-- Notes: {notes.strip() if notes.strip() else '无'}
+- Notes: {notes.strip() if notes.strip() else "None"}
 
-AVAILABLE COURSE CODES — select ONLY from this list, do not use any other codes:
+AVAILABLE COURSES — you MUST select ONLY from the course codes listed below.
+Do NOT invent, modify, or abbreviate any course code.
 {eligible_codes_str}
 
-Select exactly {load_num} codes from the list above that best match the student's goals.
+Select exactly {load_num} course codes from the list above that best match the student's goals and specialization.
+
+CRITICAL: Every "code" value in your JSON must exactly match one of the codes listed above. Any code not in the list will be discarded.
 
 Respond ONLY with valid JSON (no markdown):
 {{"summary":"一句话总体建议（中文）","selections":[{{"code":"XXXX0000","priority":"must|recommended|optional","reason":"2-3句中文理由，结合目标权重"}}],"warning":"提醒或空字符串"}}"""
@@ -247,11 +271,13 @@ Respond ONLY with valid JSON (no markdown):
             st.info(result.get("summary", ""))
 
             priority_map = {"must": "🔴 必选", "recommended": "🟢 强烈推荐", "optional": "⚪ 可选"}
+            valid_shown = 0
             for s in result.get("selections", []):
                 code = s.get("code", "")
                 course = eligible_map.get(code)
                 if not course:
                     continue
+                valid_shown += 1
                 label = priority_map.get(s.get("priority", "optional"), "⚪ 可选")
                 with st.container(border=True):
                     col_a, col_b = st.columns([3, 1])
@@ -261,6 +287,9 @@ Respond ONLY with valid JSON (no markdown):
                         st.write(s["reason"])
                     with col_b:
                         st.link_button("📖 Handbook", course["url"], use_container_width=True)
+
+            if valid_shown == 0:
+                st.error("AI 未能返回有效课程代码，请重试。")
 
         except Exception as e:
             st.error(f"出错了：{e}")
