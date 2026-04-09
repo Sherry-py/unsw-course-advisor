@@ -146,7 +146,7 @@ COURSES = {
 }
 
 COMMON_COURSES = [
-    {"code": "COMM5000", "name": "Business Research Methods", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5000"},
+    {"code": "COMM5000", "name": "Data Literacy", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5000"},
     {"code": "COMM5007", "name": "Coding for Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5007"},
 ]
 
