@@ -85,6 +85,24 @@ COURSES = {
         {"code": "ECON5110", "name": "International Trade and Finance", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5110"},
         {"code": "MGMT5505", "name": "Global Strategy", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5505"},
     ],
+    "Global Sustainability and Social Impact": [
+        {"code": "COMM5202", "name": "Social and Environmental Sustainability", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5202"},
+        {"code": "COMM5205", "name": "Leading Change for Sustainability", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5205"},
+        {"code": "MGMT5501", "name": "International Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5501"},
+        {"code": "MGMT5605", "name": "Organisational Behaviour", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT5605"},
+        {"code": "ECON5103", "name": "Business Economics", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5103"},
+        {"code": "ACCT5009", "name": "Sustainability and Integrated Reporting", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5009"},
+    ],
+    "AI in Business and Society": [
+        # ⚠️ 课程代码待从 UNSW handbook 确认后补充
+        # https://www.handbook.unsw.edu.au/postgraduate/specialisations/2026/commls
+        {"code": "INFS5848", "name": "Digital Innovation and Entrepreneurship", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5848"},
+        {"code": "INFS5710", "name": "Business Intelligence and Data Warehousing", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5710"},
+        {"code": "COMP5318", "name": "Machine Learning and Data Mining", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMP5318"},
+        {"code": "INFS6030", "name": "Cybersecurity and Privacy", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS6030"},
+        {"code": "INFS5882", "name": "Business Process Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5882"},
+        {"code": "ECON5106", "name": "Applied Econometrics for Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5106"},
+    ],
     "General / Undecided": [
         {"code": "COMM5000", "name": "Business Research Methods", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5000"},
         {"code": "COMM5007", "name": "Data Analysis for Business", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/COMM5007"},
