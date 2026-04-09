@@ -259,7 +259,7 @@ with col1:
     )
 with col2:
     term = st.selectbox(t["term_label"], [
-        "Term 1 2026", "Term 2 2026", "Term 3 2026", "Term 1 2027"
+        "Term 2 2026", "Term 3 2026", "Term 1 2027", "Term 2 2027"
     ])
 
 col3, col4 = st.columns(2)
