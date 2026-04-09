@@ -15,23 +15,13 @@ BASE = "https://www.handbook.unsw.edu.au"
 YEAR = 2026
 
 # MCom 所有专业的 handbook 代码
-SPECIALISATIONS = {
-    "Accounting":                        "ACCTTS",
-    "Business Analytics":                "COMMBS",
-    "Cybersecurity, Risk and Privacy":   "COMMCS",
-    "Digital Transformation":            "COMMDT",
-    "Economics":                         "ECONTS",
-    "Finance":                           "FINSFS",
-    "Financial Technology":              "COMMFT",
-    "Global Sustainability and Social Impact": "COMMGS",
-    "Human Resource Management":         "MGMTHS",
-    "International Business":            "MGMTIS",
-    "Marketing":                         "MARKTS",
-    "Marketing Analytics":               "COMMMA",
-    "Risk Management":                   "COMMRM",
-    "Strategy and Innovation":           "COMMSI",
-    "AI in Business and Society":        "commls",
-}
+# Codes scraped from https://www.handbook.unsw.edu.au/postgraduate/programs/2026/8404
+# Names resolved by fetching each specialisation page
+SPECIALISATIONS_CODES = [
+    "ACCTES", "COMMGS", "COMMKS", "COMMLS", "ECONFS",
+    "FINSCS", "FINSQS", "INFSKS", "INFSNS", "INFSYS",
+    "MARKGS", "MARKTS", "MGMTBS", "MGMTCS", "RISKMS",
+]
 
 def fetch(url, retries=3):
     for i in range(retries):
@@ -103,11 +93,26 @@ def build_course_entry(code, name=None):
         "url": f"https://www.handbook.unsw.edu.au/postgraduate/courses/{YEAR}/{code}"
     }
 
+def get_specialisation_name(spec_code):
+    """从专业页面抓取专业名称"""
+    url = f"{BASE}/postgraduate/specialisations/{YEAR}/{spec_code}"
+    soup = fetch(url)
+    if not soup:
+        return spec_code
+    h1 = soup.find("h1")
+    if h1:
+        return h1.get_text(strip=True)
+    title = soup.find("title")
+    if title:
+        return title.get_text(strip=True).split("|")[0].strip()
+    return spec_code
+
 def main():
     print(f"Scraping UNSW MCom handbook ({YEAR})...\n")
     courses_dict = {}
 
-    for spec_name, spec_code in SPECIALISATIONS.items():
+    for spec_code in SPECIALISATIONS_CODES:
+        spec_name = get_specialisation_name(spec_code)
         print(f"\n{'='*60}")
         print(f"Specialisation: {spec_name} ({spec_code})")
         url = f"{BASE}/postgraduate/specialisations/{YEAR}/{spec_code}"
