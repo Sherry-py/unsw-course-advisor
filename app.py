@@ -49,6 +49,15 @@ T = {
         "summary_field": "一句话总体建议（中文）",
         "reason_field": "2-3句中文理由，结合目标权重",
         "warning_field": "提醒或空字符串",
+        "prereq_label": "先修要求",
+        "workload_label": "课程工作量",
+        "final_label": "期末考试",
+        "final_yes": "有",
+        "final_no": "无",
+        "prereq_none": "无",
+        "conflict_title": "⚠️ 先修条件提醒",
+        "conflict_body": "以下推荐课程有先修要求，请确认是否已完成：",
+        "footer": "数据来源：UNSW Handbook（公开信息），非爬虫采集。本工具不代表官方学术建议。",
     },
     "English": {
         "title": "🎓 UNSW MCom Course Advisor",
@@ -89,6 +98,15 @@ T = {
         "summary_field": "one-sentence overall recommendation (English)",
         "reason_field": "2-3 sentence reason in English, referencing goal weights",
         "warning_field": "warning message or empty string",
+        "prereq_label": "Prerequisites",
+        "workload_label": "Workload",
+        "final_label": "Final Exam",
+        "final_yes": "Yes",
+        "final_no": "No",
+        "prereq_none": "None",
+        "conflict_title": "⚠️ Prerequisite Notice",
+        "conflict_body": "Some recommended courses have prerequisites you may not have completed yet:",
+        "footer": "Data source: UNSW handbook (public). No scraping. · Not official academic advice.",
     },
 }
 
@@ -249,6 +267,97 @@ for _c in COMMON_COURSES:
         ALL_COURSES_DICT[_c["code"]] = _c
 ALL_COURSE_CODES = sorted(ALL_COURSES_DICT.keys())
 
+# ── Course metadata: prerequisites, workload, final exam ─────────────────────
+# prereqs = list of course codes that are recommended before taking this course
+COURSE_META = {
+    "ACCT5930": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": True},
+    "ACCT5907": {"prereqs": ["ACCT5930"], "workload": "~9 hrs/wk", "has_final": False},
+    "ACCT5910": {"prereqs": ["ACCT5930"], "workload": "~10 hrs/wk", "has_final": False},
+    "ACCT5919": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "ACCT5925": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "ACCT5942": {"prereqs": ["ACCT5930"], "workload": "~10 hrs/wk", "has_final": True},
+    "ACCT5943": {"prereqs": ["ACCT5930"], "workload": "~11 hrs/wk", "has_final": True},
+    "ACCT5955": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "ACCT5961": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "ACCT5972": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "ACCT5995": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "ACCT5996": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "FINS5512": {"prereqs": [], "workload": "~10 hrs/wk", "has_final": True},
+    "FINS5513": {"prereqs": ["FINS5512"], "workload": "~11 hrs/wk", "has_final": True},
+    "FINS5514": {"prereqs": [], "workload": "~10 hrs/wk", "has_final": True},
+    "FINS5510": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "FINS5516": {"prereqs": ["FINS5512"], "workload": "~10 hrs/wk", "has_final": True},
+    "FINS5530": {"prereqs": ["FINS5512"], "workload": "~10 hrs/wk", "has_final": True},
+    "FINS5531": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "FINS5535": {"prereqs": ["FINS5513"], "workload": "~12 hrs/wk", "has_final": True},
+    "FINS5556": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "ECON5102": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": True},
+    "ECON5103": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": True},
+    "ECON5106": {"prereqs": ["ECON5103"], "workload": "~10 hrs/wk", "has_final": True},
+    "ECON5111": {"prereqs": ["ECON5103"], "workload": "~9 hrs/wk", "has_final": True},
+    "ECON5321": {"prereqs": ["ECON5103"], "workload": "~10 hrs/wk", "has_final": True},
+    "ECON5323": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": True},
+    "ECON5324": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": True},
+    "MARK5700": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MARK5800": {"prereqs": ["MARK5700"], "workload": "~9 hrs/wk", "has_final": False},
+    "MARK5810": {"prereqs": ["MARK5700"], "workload": "~9 hrs/wk", "has_final": False},
+    "MARK5811": {"prereqs": ["MARK5700"], "workload": "~10 hrs/wk", "has_final": False},
+    "MARK5812": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MARK5813": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "MARK5814": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "MARK5816": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MARK5820": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MARK5821": {"prereqs": ["MARK5700"], "workload": "~9 hrs/wk", "has_final": False},
+    "MARK5824": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MARK5825": {"prereqs": ["MARK5700"], "workload": "~9 hrs/wk", "has_final": False},
+    "MARK5835": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "MARK5836": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "MGMT5601": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5602": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5603": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "MGMT5701": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5710": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5720": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5800": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "MGMT5803": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "MGMT5904": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5905": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5906": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5907": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5908": {"prereqs": ["MGMT5907"], "workload": "~9 hrs/wk", "has_final": False},
+    "MGMT5912": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "MGMT5930": {"prereqs": [], "workload": "~10 hrs/wk", "has_final": True},
+    "MGMT5940": {"prereqs": [], "workload": "~7 hrs/wk", "has_final": False},
+    "MGMT5949": {"prereqs": ["MGMT5907"], "workload": "~9 hrs/wk", "has_final": False},
+    "MGMT5611": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "MGMT6005": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "INFS5604": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "INFS5631": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "INFS5704": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "INFS5705": {"prereqs": ["INFS5704"], "workload": "~10 hrs/wk", "has_final": False},
+    "INFS5706": {"prereqs": ["INFS5704"], "workload": "~10 hrs/wk", "has_final": False},
+    "INFS5731": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "INFS5831": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "INFS5848": {"prereqs": [], "workload": "~10 hrs/wk", "has_final": False},
+    "INFS5871": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "INFS5885": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "INFS5888": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "INFS5929": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "LAWS9812": {"prereqs": [], "workload": "~10 hrs/wk", "has_final": True},
+    "COMM5000": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "COMM5007": {"prereqs": [], "workload": "~10 hrs/wk", "has_final": False},
+    "COMM5040": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "COMM5201": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "COMM5202": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "COMM5204": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "COMM5205": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "COMM5615": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": False},
+    "COMM5709": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "RISK5001": {"prereqs": [], "workload": "~8 hrs/wk", "has_final": False},
+    "TABL5551": {"prereqs": [], "workload": "~10 hrs/wk", "has_final": True},
+    "ACTL5110": {"prereqs": [], "workload": "~12 hrs/wk", "has_final": True},
+}
+
 col1, col2 = st.columns(2)
 with col1:
     specs = st.multiselect(
@@ -403,6 +512,23 @@ Respond ONLY with valid JSON (no markdown):
                 st.warning(result["warning"])
             st.info(result.get("summary", ""))
 
+            # ── Conflict / prerequisite banner ───────────────────────────────
+            conflict_lines = []
+            for s in result.get("selections", []):
+                code = s.get("code", "")
+                meta = COURSE_META.get(code, {})
+                unmet = [p for p in meta.get("prereqs", []) if p not in completed_codes]
+                if unmet:
+                    course_name = eligible_map.get(code, {}).get("name", code)
+                    conflict_lines.append(f"**{code} {course_name}** — {t['prereq_label']}: {', '.join(unmet)}")
+            if conflict_lines:
+                with st.container(border=False):
+                    st.warning(
+                        t["conflict_title"] + "\n\n" +
+                        t["conflict_body"] + "\n\n" +
+                        "\n\n".join(f"- {line}" for line in conflict_lines)
+                    )
+
             priority_map = t["priority_map"]
             valid_shown = 0
             for s in result.get("selections", []):
@@ -412,12 +538,22 @@ Respond ONLY with valid JSON (no markdown):
                     continue
                 valid_shown += 1
                 label = priority_map.get(s.get("priority", "optional"), priority_map["optional"])
+                meta = COURSE_META.get(code, {})
+                prereq_display = ", ".join(meta["prereqs"]) if meta.get("prereqs") else t["prereq_none"]
+                workload_display = meta.get("workload", "—")
+                final_display = t["final_yes"] if meta.get("has_final") else t["final_no"] if "has_final" in meta else "—"
                 with st.container(border=True):
                     col_a, col_b = st.columns([3, 1])
                     with col_a:
                         st.markdown(f"**{label} · {course['code']}**")
                         st.markdown(f"#### {course['name']}")
                         st.write(s["reason"])
+                        st.markdown(
+                            f"<small>🔗 **{t['prereq_label']}:** {prereq_display} &nbsp;|&nbsp; "
+                            f"⏱ **{t['workload_label']}:** {workload_display} &nbsp;|&nbsp; "
+                            f"📝 **{t['final_label']}:** {final_display}</small>",
+                            unsafe_allow_html=True,
+                        )
                     with col_b:
                         st.link_button(t["handbook_btn"], course["url"], use_container_width=True)
 
@@ -426,3 +562,6 @@ Respond ONLY with valid JSON (no markdown):
 
         except Exception as e:
             st.error(f"Error: {e}")
+
+st.divider()
+st.caption(t["footer"])
