@@ -564,4 +564,12 @@ Respond ONLY with valid JSON (no markdown):
             st.error(f"Error: {e}")
 
 st.divider()
-st.caption(t["footer"])
+col_footer, col_feedback = st.columns([3, 1])
+with col_footer:
+    st.caption(t["footer"])
+with col_feedback:
+    st.link_button(
+        "📝 提交反馈 / Give Feedback",
+        "https://docs.google.com/forms/d/e/1FAIpQLSe_YdjLFQOtPsEzV5n5Zdi1jPfq35Nk3cgoNESinbCEqFzNhw/viewform",
+        use_container_width=True,
+    )
