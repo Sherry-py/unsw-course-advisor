@@ -160,132 +160,6 @@ t = T[lang]
 st.title(t["title"])
 st.caption(t["caption"])
 
-# ── Free usage counter ────────────────────────────────────────────────────────
-FREE_LIMIT = 3
-if "gen_count" not in st.session_state:
-    st.session_state.gen_count = 0
-if "is_pro" not in st.session_state:
-    st.session_state.is_pro = False
-
-# Sidebar
-with st.sidebar:
-    st.markdown("### 🎓 MCom Advisor")
-    if st.session_state.is_pro:
-        st.success(t["pro_badge"] + (" — 已激活" if lang == "中文" else " — Active"))
-    else:
-        remaining = max(0, FREE_LIMIT - st.session_state.gen_count)
-        st.markdown(t["free_count_label"](remaining, FREE_LIMIT))
-        st.progress(remaining / FREE_LIMIT)
-        if remaining == 0:
-            st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
-        st.caption("---")
-    st.markdown(f"**{t['multisem_label']}**")
-    st.caption(t["multisem_tip"] if st.session_state.is_pro else t["pro_locked_tip"])
-
-# ── Step progress bar ─────────────────────────────────────────────────────────
-step_labels_zh = ["🎯 目标", "📋 学习信息", "✨ 获取建议"]
-step_labels_en = ["🎯 Goals", "📋 Your Profile", "✨ Get Advice"]
-step_labels = step_labels_zh if lang == "中文" else step_labels_en
-step_cols = st.columns(3)
-for i, (col, label) in enumerate(zip(step_cols, step_labels)):
-    with col:
-        if i == 0:
-            st.markdown(f"<div style='text-align:center;font-weight:bold;color:#FF4B4B'>{label}</div>", unsafe_allow_html=True)
-        elif i == 1:
-            st.markdown(f"<div style='text-align:center;color:#888'>{label}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div style='text-align:center;color:#ccc'>{label}</div>", unsafe_allow_html=True)
-st.markdown("<hr style='margin:8px 0 16px 0'>", unsafe_allow_html=True)
-
-# ── STEP 1: Goals first ───────────────────────────────────────────────────────
-st.markdown(t["goals_header"])
-st.caption(t["goals_caption"])
-
-selected_goals = st.multiselect(
-    t["goals_header"],
-    t["goals_options"],
-    label_visibility="collapsed"
-)
-custom_goal = st.text_input(t["custom_goal_label"], placeholder=t["custom_goal_placeholder"])
-
-goal_weights = {}
-all_goals = selected_goals + ([custom_goal.strip()] if custom_goal.strip() else [])
-
-if all_goals:
-    st.caption(t["weights_caption"])
-    for g in all_goals:
-        col_name, col_score = st.columns([3, 1])
-        with col_name:
-            st.markdown(f"<div style='padding:6px 0;font-size:14px;'>{g}</div>",
-                        unsafe_allow_html=True)
-        with col_score:
-            goal_weights[g] = st.selectbox(
-                g, [1, 2, 3, 4, 5], index=2,
-                key=f"w_{g}", label_visibility="collapsed"
-            )
-    fig = px.pie(
-        names=list(goal_weights.keys()),
-        values=list(goal_weights.values()),
-        hole=0.4,
-        color_discrete_sequence=px.colors.qualitative.Set3
-    )
-    fig.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=250,
-                      showlegend=True, legend=dict(font=dict(size=11)))
-    fig.update_traces(textposition="inside", textinfo="percent+label")
-    st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
-
-# ── STEP 2: Profile ───────────────────────────────────────────────────────────
-# Update step indicator
-step_cols2 = st.columns(3)
-for i, (col, label) in enumerate(zip(step_cols2, step_labels)):
-    with col:
-        if i == 0:
-            st.markdown(f"<div style='text-align:center;color:#888'>{label}</div>", unsafe_allow_html=True)
-        elif i == 1:
-            st.markdown(f"<div style='text-align:center;font-weight:bold;color:#FF4B4B'>{label}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div style='text-align:center;color:#ccc'>{label}</div>", unsafe_allow_html=True)
-st.markdown("<hr style='margin:8px 0 16px 0'>", unsafe_allow_html=True)
-
-col1, col2 = st.columns(2)
-with col1:
-    specs = st.multiselect(
-        t["spec_label"],
-        list(COURSES.keys()),
-        max_selections=2,
-        placeholder=t["spec_placeholder"],
-    )
-with col2:
-    term = st.selectbox(t["term_label"], [
-        "Term 2 2026", "Term 3 2026", "Term 1 2027", "Term 2 2027"
-    ])
-
-col3, col4 = st.columns(2)
-with col3:
-    wam = st.text_input(t["wam_label"], placeholder=t["wam_placeholder"])
-with col4:
-    credits = st.selectbox(t["uoc_label"], [
-        "96 UOC", "72 UOC", "48 UOC", "36 UOC", "24 UOC", "12 UOC"
-    ])
-
-st.markdown(t["completed_header"])
-st.caption(t["completed_caption"])
-completed_courses = st.multiselect(
-    t["completed_header"],
-    options=ALL_COURSE_CODES,
-    format_func=lambda code: f"{code} · {ALL_COURSES_DICT[code]['name']}",
-    placeholder=t["completed_placeholder"],
-    label_visibility="collapsed",
-)
-
-load = st.radio(t["load_label"], t["load_options"], index=1, horizontal=True)
-notes = st.text_input(t["notes_label"], placeholder=t["notes_placeholder"])
-
-st.divider()
-submitted = st.button(t["submit_btn"], use_container_width=True, type="primary")
-
 COURSES = {
     "Accounting": [
         {"code": "ACCT5930", "name": "Financial Accounting", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5930"},
@@ -528,6 +402,135 @@ COURSE_META = {
     "TABL5551": {"prereqs": [], "workload": "~10 hrs/wk", "has_final": True},
     "ACTL5110": {"prereqs": [], "workload": "~12 hrs/wk", "has_final": True},
 }
+
+
+# ── Free usage counter ────────────────────────────────────────────────────────
+FREE_LIMIT = 3
+if "gen_count" not in st.session_state:
+    st.session_state.gen_count = 0
+if "is_pro" not in st.session_state:
+    st.session_state.is_pro = False
+
+# Sidebar
+with st.sidebar:
+    st.markdown("### 🎓 MCom Advisor")
+    if st.session_state.is_pro:
+        st.success(t["pro_badge"] + (" — 已激活" if lang == "中文" else " — Active"))
+    else:
+        remaining = max(0, FREE_LIMIT - st.session_state.gen_count)
+        st.markdown(t["free_count_label"](remaining, FREE_LIMIT))
+        st.progress(remaining / FREE_LIMIT)
+        if remaining == 0:
+            st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
+        st.caption("---")
+    st.markdown(f"**{t['multisem_label']}**")
+    st.caption(t["multisem_tip"] if st.session_state.is_pro else t["pro_locked_tip"])
+
+# ── Step progress bar ─────────────────────────────────────────────────────────
+step_labels_zh = ["🎯 目标", "📋 学习信息", "✨ 获取建议"]
+step_labels_en = ["🎯 Goals", "📋 Your Profile", "✨ Get Advice"]
+step_labels = step_labels_zh if lang == "中文" else step_labels_en
+step_cols = st.columns(3)
+for i, (col, label) in enumerate(zip(step_cols, step_labels)):
+    with col:
+        if i == 0:
+            st.markdown(f"<div style='text-align:center;font-weight:bold;color:#FF4B4B'>{label}</div>", unsafe_allow_html=True)
+        elif i == 1:
+            st.markdown(f"<div style='text-align:center;color:#888'>{label}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div style='text-align:center;color:#ccc'>{label}</div>", unsafe_allow_html=True)
+st.markdown("<hr style='margin:8px 0 16px 0'>", unsafe_allow_html=True)
+
+# ── STEP 1: Goals first ───────────────────────────────────────────────────────
+st.markdown(t["goals_header"])
+st.caption(t["goals_caption"])
+
+selected_goals = st.multiselect(
+    t["goals_header"],
+    t["goals_options"],
+    label_visibility="collapsed"
+)
+custom_goal = st.text_input(t["custom_goal_label"], placeholder=t["custom_goal_placeholder"])
+
+goal_weights = {}
+all_goals = selected_goals + ([custom_goal.strip()] if custom_goal.strip() else [])
+
+if all_goals:
+    st.caption(t["weights_caption"])
+    for g in all_goals:
+        col_name, col_score = st.columns([3, 1])
+        with col_name:
+            st.markdown(f"<div style='padding:6px 0;font-size:14px;'>{g}</div>",
+                        unsafe_allow_html=True)
+        with col_score:
+            goal_weights[g] = st.selectbox(
+                g, [1, 2, 3, 4, 5], index=2,
+                key=f"w_{g}", label_visibility="collapsed"
+            )
+    fig = px.pie(
+        names=list(goal_weights.keys()),
+        values=list(goal_weights.values()),
+        hole=0.4,
+        color_discrete_sequence=px.colors.qualitative.Set3
+    )
+    fig.update_layout(margin=dict(t=20, b=20, l=20, r=20), height=250,
+                      showlegend=True, legend=dict(font=dict(size=11)))
+    fig.update_traces(textposition="inside", textinfo="percent+label")
+    st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ── STEP 2: Profile ───────────────────────────────────────────────────────────
+# Update step indicator
+step_cols2 = st.columns(3)
+for i, (col, label) in enumerate(zip(step_cols2, step_labels)):
+    with col:
+        if i == 0:
+            st.markdown(f"<div style='text-align:center;color:#888'>{label}</div>", unsafe_allow_html=True)
+        elif i == 1:
+            st.markdown(f"<div style='text-align:center;font-weight:bold;color:#FF4B4B'>{label}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div style='text-align:center;color:#ccc'>{label}</div>", unsafe_allow_html=True)
+st.markdown("<hr style='margin:8px 0 16px 0'>", unsafe_allow_html=True)
+
+col1, col2 = st.columns(2)
+with col1:
+    specs = st.multiselect(
+        t["spec_label"],
+        list(COURSES.keys()),
+        max_selections=2,
+        placeholder=t["spec_placeholder"],
+    )
+with col2:
+    term = st.selectbox(t["term_label"], [
+        "Term 2 2026", "Term 3 2026", "Term 1 2027", "Term 2 2027"
+    ])
+
+col3, col4 = st.columns(2)
+with col3:
+    wam = st.text_input(t["wam_label"], placeholder=t["wam_placeholder"])
+with col4:
+    credits = st.selectbox(t["uoc_label"], [
+        "96 UOC", "72 UOC", "48 UOC", "36 UOC", "24 UOC", "12 UOC"
+    ])
+
+st.markdown(t["completed_header"])
+st.caption(t["completed_caption"])
+completed_courses = st.multiselect(
+    t["completed_header"],
+    options=ALL_COURSE_CODES,
+    format_func=lambda code: f"{code} · {ALL_COURSES_DICT[code]['name']}",
+    placeholder=t["completed_placeholder"],
+    label_visibility="collapsed",
+)
+
+load = st.radio(t["load_label"], t["load_options"], index=1, horizontal=True)
+notes = st.text_input(t["notes_label"], placeholder=t["notes_placeholder"])
+
+st.divider()
+submitted = st.button(t["submit_btn"], use_container_width=True, type="primary")
+
+
 
 
 
