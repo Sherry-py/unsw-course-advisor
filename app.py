@@ -3,83 +3,8 @@ import anthropic
 import json
 import time
 import plotly.express as px
-import os
-import datetime
-from pathlib import Path
-
-# ── GateFix: 4D-CQ Logging & Governance ─────────────────────────────────────
-LOG_DIR = Path.home() / ".hermes" / "unsw_advisor_logs"
-LOG_FILE = LOG_DIR / "usage_log.json"
-
-def _write_log(entry: dict):
-    """Append a usage log entry to the JSON log file."""
-    try:
-        LOG_DIR.mkdir(parents=True, exist_ok=True)
-        logs = []
-        if LOG_FILE.exists():
-            try:
-                logs = json.loads(LOG_FILE.read_text())
-            except Exception:
-                logs = []
-        logs.append(entry)
-        LOG_FILE.write_text(json.dumps(logs, ensure_ascii=False, indent=2))
-    except Exception:
-        pass  # Never break the app due to logging failure
-
-def run_gatefix(specs, wam, credits, completed_courses, goal_weights, custom_goal, lang):
-    """
-    GateFix 4D-CQ pre-execution governance check.
-    Returns: (decision, results_dict)
-      decision: "PASS" | "CLARIFY" | "REFUSE"
-      results_dict: {dim: "OK"|"DEFECT", ...}
-    """
-    results = {}
-
-    # Relevance: at least one goal selected (or custom goal)
-    all_goals = list(goal_weights.keys()) + ([custom_goal.strip()] if custom_goal.strip() else [])
-    results["relevance"] = "OK" if all_goals else "DEFECT"
-
-    # Coverage: completed_courses filled unless student is brand new (96 UOC remaining)
-    # If remaining UOC is 96 (just starting), empty completed is fine
-    if not completed_courses and credits != "96 UOC":
-        results["coverage"] = "DEFECT"
-    else:
-        results["coverage"] = "OK"
-
-    # Ordering: check if any completed course has prereqs that are NOT in completed list
-    completed_set = set(completed_courses)
-    ordering_defect = False
-    for code in completed_set:
-        prereqs = COURSE_META.get(code, {}).get("prereqs", [])
-        for p in prereqs:
-            if p not in completed_set:
-                ordering_defect = True
-                break
-    results["ordering"] = "DEFECT" if ordering_defect else "OK"
-
-    # Robustness: WAM must be numeric and in 0-100 if provided
-    wam_val = wam.strip()
-    if wam_val:
-        try:
-            wam_num = float(wam_val)
-            results["robustness"] = "OK" if 0 <= wam_num <= 100 else "DEFECT"
-        except ValueError:
-            results["robustness"] = "DEFECT"
-    else:
-        results["robustness"] = "OK"
-
-    # Authorization logic (GateFix rules)
-    critical_defect = results["relevance"] == "DEFECT" or results["coverage"] == "DEFECT"
-    noncritical_defect = results["ordering"] == "DEFECT" or results["robustness"] == "DEFECT"
-
-    if critical_defect:
-        decision = "REFUSE"
-    elif noncritical_defect:
-        decision = "CLARIFY"
-    else:
-        decision = "PASS"
-
-    return decision, results
+from gatefix import run_gatefix
+from logger import log_submission
 
 st.set_page_config(page_title="UNSW MCom Course Advisor", page_icon="🎓", layout="centered")
 
@@ -135,6 +60,11 @@ T = {
         "conflict_title": "⚠️ 先修条件提醒",
         "conflict_body": "以下推荐课程有先修要求，请确认是否已完成：",
         "footer": "数据来源：UNSW Handbook（公开信息），非爬虫采集。本工具不代表官方学术建议。",
+        # GateFix UI strings
+        "gf_pass":    "✅ 已通过 GateFix 治理检测 — 信息完整，授权生成",
+        "gf_clarify": "⚠️ GateFix 治理提示（非关键维度）",
+        "gf_refuse":  "⛔ GateFix 治理拦截 — 请补充以下信息再提交",
+        "gf_badge":   "🔬 *本建议已通过 GateFix 4D-CQ 治理框架检测*",
     },
     "English": {
         "title": "🎓 UNSW MCom Course Advisor",
@@ -184,6 +114,11 @@ T = {
         "conflict_title": "⚠️ Prerequisite Notice",
         "conflict_body": "Some recommended courses have prerequisites you may not have completed yet:",
         "footer": "Data source: UNSW handbook (public). No scraping. · Not official academic advice.",
+        # GateFix UI strings
+        "gf_pass":    "✅ GateFix Governance Passed — Information complete, authorizing generation",
+        "gf_clarify": "⚠️ GateFix Governance Notice (non-critical dimensions)",
+        "gf_refuse":  "⛔ GateFix Governance Blocked — Please complete the following before generating",
+        "gf_badge":   "🔬 *This recommendation passed GateFix 4D-CQ governance verification*",
     },
 }
 
@@ -345,7 +280,6 @@ for _c in COMMON_COURSES:
 ALL_COURSE_CODES = sorted(ALL_COURSES_DICT.keys())
 
 # ── Course metadata: prerequisites, workload, final exam ─────────────────────
-# prereqs = list of course codes that are recommended before taking this course
 COURSE_META = {
     "ACCT5930": {"prereqs": [], "workload": "~9 hrs/wk", "has_final": True},
     "ACCT5907": {"prereqs": ["ACCT5930"], "workload": "~9 hrs/wk", "has_final": False},
@@ -435,6 +369,7 @@ COURSE_META = {
     "ACTL5110": {"prereqs": [], "workload": "~12 hrs/wk", "has_final": True},
 }
 
+# ── UI Widgets ────────────────────────────────────────────────────────────────
 col1, col2 = st.columns(2)
 with col1:
     specs = st.multiselect(
@@ -515,91 +450,98 @@ if submitted:
         st.error(t["err_no_spec"])
         st.stop()
 
-    # ── GateFix Pre-Execution Governance ─────────────────────────────────────
-    gf_decision, gf_results = run_gatefix(
-        specs, wam, credits, completed_courses, goal_weights, custom_goal, lang
-    )
-
-    if gf_decision == "REFUSE":
-        # Show which dimensions failed
-        refused_msgs = []
-        if gf_results["relevance"] == "DEFECT":
-            if lang == "中文":
-                refused_msgs.append("🎯 **目标缺失（Relevance）**：请至少选择一个毕业目标，这样AI才能给出有针对性的建议。")
-            else:
-                refused_msgs.append("🎯 **No goals selected (Relevance)**: Please select at least one graduation goal so the AI can give targeted recommendations.")
-        if gf_results["coverage"] == "DEFECT":
-            if lang == "中文":
-                refused_msgs.append("📋 **信息不完整（Coverage）**：你的剩余学分不是96 UOC，说明你已经读了一段时间，请填写已修课程以获得更准确的建议。")
-            else:
-                refused_msgs.append("📋 **Incomplete information (Coverage)**: You have less than 96 UOC remaining, which means you've already completed some courses. Please select your completed courses for accurate recommendations.")
-        st.error(
-            ("⛔ GateFix 治理检测未通过 — 请补充以下信息再生成建议：\n\n" if lang == "中文"
-             else "⛔ GateFix Governance Check Failed — Please complete the following before generating:\n\n") +
-            "\n\n".join(refused_msgs)
-        )
-        # Log the REFUSE event
-        _write_log({
-            "timestamp": datetime.datetime.now().isoformat(),
-            "lang": lang,
-            "specializations": specs,
-            "term": credits,
-            "wam_provided": bool(wam.strip()),
-            "uoc": credits,
-            "completed_courses_count": len(completed_courses),
-            "goals_count": len(goal_weights),
-            "load": load,
-            "notes_provided": bool(notes.strip()),
-            "gatefix_decision": "REFUSE",
-            "gatefix_results": gf_results,
-        })
-        st.stop()
-
-    if gf_decision == "CLARIFY":
-        clarify_msgs = []
-        if gf_results["ordering"] == "DEFECT":
-            if lang == "中文":
-                clarify_msgs.append("⚠️ **先修课程顺序异常（Ordering）**：你的已修课程中有课程的先修要求似乎未满足，建议检查是否选错了。AI仍将继续生成建议，请留意先修提示。")
-            else:
-                clarify_msgs.append("⚠️ **Prerequisite ordering issue (Ordering)**: Some completed courses appear to have unmet prerequisites. Please verify your selections. AI will still generate recommendations — watch for prerequisite warnings.")
-        if gf_results["robustness"] == "DEFECT":
-            if lang == "中文":
-                clarify_msgs.append("⚠️ **WAM格式异常（Robustness）**：WAM应为0-100之间的数字，已忽略该输入，AI将按未提供WAM处理。")
-            else:
-                clarify_msgs.append("⚠️ **WAM format issue (Robustness)**: WAM should be a number between 0–100. This input will be ignored.")
-        st.warning("\n\n".join(clarify_msgs))
-
-    if gf_decision == "PASS":
-        if lang == "中文":
-            st.success("✅ GateFix 治理通过 — 信息完整，AI正在生成建议")
-        else:
-            st.success("✅ GateFix Governance Passed — Information complete, generating recommendations")
-
-    wam_str = wam.strip() if wam.strip() and gf_results["robustness"] == "OK" else t["wam_none"]
-    load_num = load[0]
-    goals_str = t["goals_str_fmt"](goal_weights) if goal_weights else t["goals_none"]
-
-    # Combine courses from all selected specializations
+    # ── Pre-compute eligible course pool ─────────────────────────────────────
     spec_pool = []
     for s in specs:
         spec_pool.extend(COURSES.get(s, []))
-
-    all_courses = COMMON_COURSES + spec_pool
-    seen = set()
+    all_courses_pool = COMMON_COURSES + spec_pool
+    seen_codes: set = set()
     deduped = []
-    for c in all_courses:
-        if c["code"] not in seen:
-            seen.add(c["code"])
+    for c in all_courses_pool:
+        if c["code"] not in seen_codes:
+            seen_codes.add(c["code"])
             deduped.append(c)
-    all_courses = deduped
-
     completed_codes = set(completed_courses)
-    eligible = [c for c in all_courses if c["code"] not in completed_codes]
+    eligible = [c for c in deduped if c["code"] not in completed_codes]
     eligible_map = {c["code"]: c for c in eligible}
-    eligible_codes_str = "\n".join([f"- {c['code']}: {c['name']}" for c in eligible])
 
+    # ── GateFix: 4D-CQ pre-execution governance check ────────────────────────
+    # Architecture: f(C, g) = φ(h(C, g))
+    # h: context → S = (s_rel, s_cov, s_ord, s_rob)
+    # φ: S → {PASS, CLARIFY, REFUSE}
+    gf = run_gatefix(
+        specs=specs,
+        goal_weights=goal_weights,
+        eligible_courses=eligible,
+        completed_codes=completed_codes,
+        credits_str=credits,
+        load_str=load,
+        wam=wam,
+        course_meta=COURSE_META,
+    )
+
+    # ── φ = REFUSE: critical dimension(s) failed — block execution ────────────
+    if gf.decision == "REFUSE":
+        refuse_lines = []
+        cq = gf.cq_vector
+        if cq.relevance == "DEFECT":
+            refuse_lines.append(
+                f"🎯 **Relevance** *(critical)*: {cq.relevance_reason}"
+                if lang == "English"
+                else f"🎯 **目标相关性（Relevance，关键维度）**: {cq.relevance_reason}"
+            )
+        if cq.coverage == "DEFECT":
+            refuse_lines.append(
+                f"📋 **Coverage** *(critical)*: {cq.coverage_reason}"
+                if lang == "English"
+                else f"📋 **信息完整度（Coverage，关键维度）**: {cq.coverage_reason}"
+            )
+        st.error(
+            t["gf_refuse"] + "\n\n" +
+            "\n\n".join(refuse_lines)
+        )
+        # Log REFUSE event for thesis data
+        log_submission(
+            specs=specs, goal_weights=goal_weights, completed_courses=completed_courses,
+            credits=credits, load=load, wam=wam, notes=notes, term=term, lang=lang,
+            gatefix_result=gf, ai_generated=False,
+        )
+        st.stop()
+
+    # ── φ = CLARIFY: non-critical dimension(s) flagged — warn but proceed ─────
+    if gf.decision == "CLARIFY":
+        clarify_lines = []
+        cq = gf.cq_vector
+        if cq.ordering == "DEFECT":
+            clarify_lines.append(
+                f"📐 **Ordering** *(non-critical)*: {cq.ordering_reason}"
+                if lang == "English"
+                else f"📐 **先修顺序（Ordering，非关键维度）**: {cq.ordering_reason}"
+            )
+        if cq.robustness == "DEFECT":
+            clarify_lines.append(
+                f"🛡 **Robustness** *(non-critical)*: {cq.robustness_reason}"
+                if lang == "English"
+                else f"🛡 **输入鲁棒性（Robustness，非关键维度）**: {cq.robustness_reason}"
+            )
+        st.warning(t["gf_clarify"] + "\n\n" + "\n\n".join(clarify_lines))
+
+    # ── φ = PASS ──────────────────────────────────────────────────────────────
+    if gf.decision == "PASS":
+        st.success(t["gf_pass"])
+
+    # ── AI generation (authorized) ───────────────────────────────────────────
+    # WAM is ignored if Robustness flagged it as invalid
+    wam_str = (
+        wam.strip()
+        if wam.strip() and gf.cq_vector.robustness == "OK"
+        else t["wam_none"]
+    )
+    load_num = load[0]
+    goals_str = t["goals_str_fmt"](goal_weights) if goal_weights else t["goals_none"]
     spec_label = " & ".join(specs)
     response_lang = t["ai_lang"]
+    eligible_codes_str = "\n".join([f"- {c['code']}: {c['name']}" for c in eligible])
 
     prompt = f"""You are a UNSW MCom academic advisor. Respond in {response_lang}.
 
@@ -625,6 +567,7 @@ Respond ONLY with valid JSON (no markdown):
 {{"summary":"{t['summary_field']}","selections":[{{"code":"XXXX0000","priority":"must|recommended|optional","reason":"{t['reason_field']}"}}],"warning":"{t['warning_field']}"}}"""
 
     with st.spinner(t["spinner"]):
+        ai_generated = False
         try:
             client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
             for attempt in range(3):
@@ -644,6 +587,7 @@ Respond ONLY with valid JSON (no markdown):
 
             raw = message.content[0].text.replace("```json", "").replace("```", "").strip()
             result = json.loads(raw)
+            ai_generated = True
 
             if result.get("warning"):
                 st.warning(result["warning"])
@@ -696,25 +640,25 @@ Respond ONLY with valid JSON (no markdown):
 
             if valid_shown == 0:
                 st.error(t["no_valid_courses"])
-
-            # ── GateFix: Log successful AI call ──────────────────────────────
-            _write_log({
-                "timestamp": datetime.datetime.now().isoformat(),
-                "lang": lang,
-                "specializations": specs,
-                "term": credits,
-                "wam_provided": bool(wam.strip()),
-                "uoc": credits,
-                "completed_courses_count": len(completed_courses),
-                "goals_count": len(goal_weights),
-                "load": load,
-                "notes_provided": bool(notes.strip()),
-                "gatefix_decision": gf_decision,
-                "gatefix_results": gf_results,
-            })
+            else:
+                # GateFix provenance badge on successful output
+                st.caption(t["gf_badge"])
 
         except Exception as e:
             st.error(f"Error: {e}")
+
+        finally:
+            # Always log — regardless of AI success/failure
+            try:
+                log_submission(
+                    specs=specs, goal_weights=goal_weights,
+                    completed_courses=completed_courses,
+                    credits=credits, load=load, wam=wam, notes=notes,
+                    term=term, lang=lang,
+                    gatefix_result=gf, ai_generated=ai_generated,
+                )
+            except Exception:
+                pass  # Never break the app due to logging failure
 
 st.divider()
 col_footer, col_feedback = st.columns([3, 1])
