@@ -60,11 +60,17 @@ T = {
         "conflict_title": "⚠️ 先修条件提醒",
         "conflict_body": "以下推荐课程有先修要求，请确认是否已完成：",
         "footer": "数据来源：UNSW Handbook（公开信息），非爬虫采集。本工具不代表官方学术建议。",
-        # GateFix UI strings
-        "gf_pass":    "✅ 已通过 GateFix 治理检测 — 信息完整，授权生成",
-        "gf_clarify": "⚠️ GateFix 治理提示（非关键维度）",
-        "gf_refuse":  "⛔ GateFix 治理拦截 — 请补充以下信息再提交",
-        "gf_badge":   "🔬 *本建议已通过 GateFix 4D-CQ 治理框架检测*",
+        # GateFix UI strings (user-facing: friendly assistant tone, no technical terms)
+        "gf_pass":    None,   # silent pass — just proceed
+        "gf_clarify": "💡 小提示",
+        "gf_refuse":  "🤔 还差一步！助手需要更多信息才能给你精准建议",
+        "gf_badge":   "✅ *已通过智能质量检测*",
+        "gf_relevance_refuse": "🎯 **选择一个毕业目标吧！** 告诉我你想去哪个方向——金融、科技、创业还是读博？有了目标，我才能帮你选最合适的课 😊",
+        "gf_coverage_refuse_goals": "📋 **选一个毕业目标就能生成啦！** 哪怕只选一个也行，这样我才能根据你的方向来推荐课程～",
+        "gf_coverage_refuse_uoc": "📊 **学分和课程数对不上哦～** 你的剩余学分不够选这么多门课，要么减少课程数量，要么更新一下剩余学分？",
+        "gf_coverage_refuse_pool": "📚 **可选课程太少了！** 当前专业方向下符合条件的课不够你选的，考虑加一个第二专业方向？",
+        "gf_ordering_clarify": "📐 **小提醒：** 你的已修课程里有几门好像没满足先修要求，是不是选错了？没关系，我照样帮你生成建议，注意看先修提示就好～",
+        "gf_robustness_clarify": "🔢 **WAM格式有点问题哦～** 应该是0-100之间的数字，我帮你忽略这项了，不影响其他推荐！",
     },
     "English": {
         "title": "🎓 UNSW MCom Course Advisor",
@@ -114,11 +120,17 @@ T = {
         "conflict_title": "⚠️ Prerequisite Notice",
         "conflict_body": "Some recommended courses have prerequisites you may not have completed yet:",
         "footer": "Data source: UNSW handbook (public). No scraping. · Not official academic advice.",
-        # GateFix UI strings
-        "gf_pass":    "✅ GateFix Governance Passed — Information complete, authorizing generation",
-        "gf_clarify": "⚠️ GateFix Governance Notice (non-critical dimensions)",
-        "gf_refuse":  "⛔ GateFix Governance Blocked — Please complete the following before generating",
-        "gf_badge":   "🔬 *This recommendation passed GateFix 4D-CQ governance verification*",
+        # GateFix UI strings (user-facing: friendly assistant tone, no technical terms)
+        "gf_pass":    None,   # silent pass — just proceed
+        "gf_clarify": "💡 Quick note",
+        "gf_refuse":  "🤔 Almost there! The advisor needs a bit more info to give you great recommendations",
+        "gf_badge":   "✅ *Passed smart quality check*",
+        "gf_relevance_refuse": "🎯 **Pick a graduation goal!** Tell me where you're headed — finance, tech, entrepreneurship, or PhD? That's how I figure out which courses suit you best 😊",
+        "gf_coverage_refuse_goals": "📋 **Just select one goal and you're good to go!** Even one goal helps me tailor the recommendations to your direction～",
+        "gf_coverage_refuse_uoc": "📊 **UOC and course load don't add up!** You don't have enough remaining UOC for that many courses. Try reducing the course load or updating your remaining UOC.",
+        "gf_coverage_refuse_pool": "📚 **Not enough courses available!** Your current specialization doesn't have enough eligible courses. Try adding a second specialization?",
+        "gf_ordering_clarify": "📐 **Just a heads-up:** Some completed courses seem to have unmet prerequisites — double check your selections. I'll still generate recommendations, just watch the prerequisite notices～",
+        "gf_robustness_clarify": "🔢 **WAM format looks off～** It should be a number between 0–100. I'll ignore that field for now — won't affect your other recommendations!",
     },
 }
 
@@ -485,22 +497,20 @@ if submitted:
         refuse_lines = []
         cq = gf.cq_vector
         if cq.relevance == "DEFECT":
-            refuse_lines.append(
-                f"🎯 **Relevance** *(critical)*: {cq.relevance_reason}"
-                if lang == "English"
-                else f"🎯 **目标相关性（Relevance，关键维度）**: {cq.relevance_reason}"
-            )
+            refuse_lines.append(t["gf_relevance_refuse"])
         if cq.coverage == "DEFECT":
-            refuse_lines.append(
-                f"📋 **Coverage** *(critical)*: {cq.coverage_reason}"
-                if lang == "English"
-                else f"📋 **信息完整度（Coverage，关键维度）**: {cq.coverage_reason}"
-            )
-        st.error(
+            # Pick the most specific coverage message
+            reason = cq.coverage_reason
+            if "goal" in reason.lower() or "目标" in reason:
+                refuse_lines.append(t["gf_coverage_refuse_goals"])
+            elif "UOC" in reason or "学分" in reason:
+                refuse_lines.append(t["gf_coverage_refuse_uoc"])
+            else:
+                refuse_lines.append(t["gf_coverage_refuse_pool"])
+        st.warning(
             t["gf_refuse"] + "\n\n" +
             "\n\n".join(refuse_lines)
         )
-        # Log REFUSE event for thesis data
         log_submission(
             specs=specs, goal_weights=goal_weights, completed_courses=completed_courses,
             credits=credits, load=load, wam=wam, notes=notes, term=term, lang=lang,
@@ -513,22 +523,12 @@ if submitted:
         clarify_lines = []
         cq = gf.cq_vector
         if cq.ordering == "DEFECT":
-            clarify_lines.append(
-                f"📐 **Ordering** *(non-critical)*: {cq.ordering_reason}"
-                if lang == "English"
-                else f"📐 **先修顺序（Ordering，非关键维度）**: {cq.ordering_reason}"
-            )
+            clarify_lines.append(t["gf_ordering_clarify"])
         if cq.robustness == "DEFECT":
-            clarify_lines.append(
-                f"🛡 **Robustness** *(non-critical)*: {cq.robustness_reason}"
-                if lang == "English"
-                else f"🛡 **输入鲁棒性（Robustness，非关键维度）**: {cq.robustness_reason}"
-            )
-        st.warning(t["gf_clarify"] + "\n\n" + "\n\n".join(clarify_lines))
+            clarify_lines.append(t["gf_robustness_clarify"])
+        st.info(t["gf_clarify"] + "\n\n" + "\n\n".join(clarify_lines))
 
-    # ── φ = PASS ──────────────────────────────────────────────────────────────
-    if gf.decision == "PASS":
-        st.success(t["gf_pass"])
+    # ── φ = PASS: silent — just proceed cleanly ───────────────────────────────
 
     # ── AI generation (authorized) ───────────────────────────────────────────
     # WAM is ignored if Robustness flagged it as invalid
