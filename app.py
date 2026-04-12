@@ -71,6 +71,17 @@ T = {
         "gf_coverage_refuse_pool": "📚 **可选课程太少了！** 当前专业方向下符合条件的课不够你选的，考虑加一个第二专业方向？",
         "gf_ordering_clarify": "📐 **小提醒：** 你的已修课程里有几门好像没满足先修要求，是不是选错了？没关系，我照样帮你生成建议，注意看先修提示就好～",
         "gf_robustness_clarify": "🔢 **WAM格式有点问题哦～** 应该是0-100之间的数字，我帮你忽略这项了，不影响其他推荐！",
+        # Paywall strings
+        "free_count_label":   lambda n, mx: f"本月剩余免费次数：**{n}/{mx}**",
+        "paywall_title":      "🔓 免费次数已用完",
+        "paywall_body":       "升级到 **Pro** 继续使用，还能解锁多学期规划和PDF导出！",
+        "paywall_btn":        "✨ 升级 Pro — AUD $9.9/月",
+        "paywall_url":        "https://buy.stripe.com/PLACEHOLDER",
+        "pro_badge":          "✨ Pro",
+        "pro_locked_tip":     "🔒 Pro 功能 — 升级后解锁",
+        "multisem_label":     "📅 多学期规划（Pro）",
+        "multisem_tip":       "规划未来多个学期的课程路径",
+        "export_btn":         "📄 导出建议书 PDF（Pro）",
     },
     "English": {
         "title": "🎓 UNSW MCom Course Advisor",
@@ -131,12 +142,47 @@ T = {
         "gf_coverage_refuse_pool": "📚 **Not enough courses available!** Your current specialization doesn't have enough eligible courses. Try adding a second specialization?",
         "gf_ordering_clarify": "📐 **Just a heads-up:** Some completed courses seem to have unmet prerequisites — double check your selections. I'll still generate recommendations, just watch the prerequisite notices～",
         "gf_robustness_clarify": "🔢 **WAM format looks off～** It should be a number between 0–100. I'll ignore that field for now — won't affect your other recommendations!",
+        # Paywall strings
+        "free_count_label":   lambda n, mx: f"Free uses remaining: **{n}/{mx}**",
+        "paywall_title":      "🔓 Free limit reached",
+        "paywall_body":       "Upgrade to **Pro** to keep going — plus unlock multi-term planning and PDF export!",
+        "paywall_btn":        "✨ Upgrade to Pro — AUD $9.9/mo",
+        "paywall_url":        "https://buy.stripe.com/PLACEHOLDER",
+        "pro_badge":          "✨ Pro",
+        "pro_locked_tip":     "🔒 Pro feature — upgrade to unlock",
+        "multisem_label":     "📅 Multi-term Planning (Pro)",
+        "multisem_tip":       "Plan your course path across multiple future terms",
+        "export_btn":         "📄 Export Recommendation PDF (Pro)",
     },
 }
 
 t = T[lang]
 st.title(t["title"])
 st.caption(t["caption"])
+
+# ── Free usage counter (session-based, 3 free generations) ───────────────────
+FREE_LIMIT = 3
+if "gen_count" not in st.session_state:
+    st.session_state.gen_count = 0
+if "is_pro" not in st.session_state:
+    st.session_state.is_pro = False
+
+# Show usage counter in sidebar
+with st.sidebar:
+    st.markdown("### 🎓 MCom Advisor")
+    if st.session_state.is_pro:
+        st.success(t["pro_badge"] + " — 已激活" if lang == "中文" else t["pro_badge"] + " — Active")
+    else:
+        remaining = max(0, FREE_LIMIT - st.session_state.gen_count)
+        st.markdown(t["free_count_label"](remaining, FREE_LIMIT))
+        st.progress(remaining / FREE_LIMIT)
+        if remaining == 0:
+            st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
+        st.caption("---")
+    # Pro feature teaser in sidebar
+    st.markdown(f"**{t['multisem_label']}**")
+    st.caption(t["multisem_tip"] if st.session_state.is_pro else t["pro_locked_tip"])
+
 
 COURSES = {
     "Accounting": [
@@ -530,6 +576,12 @@ if submitted:
 
     # ── φ = PASS: silent — just proceed cleanly ───────────────────────────────
 
+    # ── Paywall check ─────────────────────────────────────────────────────────
+    if not st.session_state.is_pro and st.session_state.gen_count >= FREE_LIMIT:
+        st.warning(f"**{t['paywall_title']}**\n\n{t['paywall_body']}")
+        st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
+        st.stop()
+
     # ── AI generation (authorized) ───────────────────────────────────────────
     # WAM is ignored if Robustness flagged it as invalid
     wam_str = (
@@ -641,8 +693,21 @@ Respond ONLY with valid JSON (no markdown):
             if valid_shown == 0:
                 st.error(t["no_valid_courses"])
             else:
-                # GateFix provenance badge on successful output
+                # GateFix provenance badge
                 st.caption(t["gf_badge"])
+                # Increment free usage counter on successful generation
+                st.session_state.gen_count += 1
+                # ── Pro feature: PDF export (locked for free users) ───────────
+                st.divider()
+                if st.session_state.is_pro:
+                    if st.button(t["export_btn"], use_container_width=True):
+                        st.info("PDF导出功能开发中，敬请期待！" if lang == "中文" else "PDF export coming soon!")
+                else:
+                    col_pdf, col_up = st.columns([2, 1])
+                    with col_pdf:
+                        st.button(t["export_btn"], disabled=True, use_container_width=True)
+                    with col_up:
+                        st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
 
         except Exception as e:
             st.error(f"Error: {e}")
