@@ -44,6 +44,21 @@ if os.path.exists(LOG_PATH):
 st.title("🔬 GateFix 4D-CQ Research Dashboard")
 st.caption(f"Total submissions: {len(records)}  |  Log: {LOG_PATH}")
 
+# ── Research baseline reference ────────────────────────────────────────────
+with st.expander("📊 论文基准数据 / Paper Baseline (FinQA)", expanded=False):
+    st.markdown("""
+| 指标 | 数值 |
+|---|---|
+| LLM 感知准确率 (DimAcc) | **92.2%** (Qwen-Plus, FinQA) |
+| 无治理授权准确率 (Baseline GateAcc) | **50.8%** |
+| GateFix 治理后授权准确率 | **93.8%** |
+| Perception–Decision Gap | **41.4 pp** |
+| 验证数据集 | FinQA (S&P 500, N=500) |
+| 跨域验证场景 | 本课程助手（金融 → 教育） |
+
+每次提交数据匿名记录，用于跨域泛化性研究。
+    """)
+
 if not records:
     st.info("暂无数据 / No submissions yet.")
     st.stop()
