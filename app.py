@@ -575,11 +575,9 @@ def _render_experiment_panel(gate, eligible_map, result_ungated, result_governed
         expanded=True,
     ):
         st.markdown(
-            "> 本工具内嵌了 **GateFix 预执行治理框架**（论文：*When Knowing Is Not Enough*，JMIS投稿）。\n"
-            "> 下方对比展示：**同样的输入**，AI 在有/无治理层时的行为差异——这正是论文核心发现的真实呈现。"
+            "本助手在生成建议前，会对你的输入进行 **GateFix 质量检测**，确保 AI 只在信息充分时才执行——而不是在任何情况下都给出看似合理的答案。"
             if cn else
-            "> This tool embeds the **GateFix pre-execution governance framework** (*When Knowing Is Not Enough*, JMIS submission).\n"
-            "> Below: **same input**, different AI behavior with vs. without the governance layer — a live demonstration of the paper's core finding."
+            "Before generating recommendations, this advisor runs a **GateFix quality check** on your input — ensuring AI only executes when context is sufficient, rather than producing plausible-sounding answers regardless of input quality."
         )
 
         st.markdown("---")
@@ -693,16 +691,6 @@ def _render_experiment_panel(gate, eligible_map, result_ungated, result_governed
                 )
 
         st.markdown("---")
-        st.caption(
-            "📊 **研究数据**：GateFix 论文（基于 FinQA 金融数据集）发现 LLM 感知质量问题准确率 **92.2%**，"
-            "但无治理层时授权准确率仅 **50.8%**（*perception–decision decoupling*）。"
-            "本课程助手为跨域验证场景（金融→教育），每次提交数据匿名记录用于学术研究。"
-            if cn else
-            "📊 **Research context**: GateFix paper (FinQA financial dataset) found LLMs perceive quality issues with "
-            "**92.2% accuracy**, yet without governance their execution authorization accuracy is only **50.8%** "
-            "(*perception–decision decoupling*). This course advisor is the cross-domain validation scenario "
-            "(finance → education). Every submission is anonymously logged for academic research."
-        )
 
 
 # ════════════════════════════════════════════════════════
