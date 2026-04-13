@@ -526,7 +526,7 @@ if all_goals:
 # ════════════════════════════════════════════════════════
 
 st.divider()
-step_bar(1)
+st.subheader(t["sec_profile"])
 
 c1, c2 = st.columns(2)
 with c1:
@@ -561,7 +561,7 @@ with c6:
 # ════════════════════════════════════════════════════════
 
 st.divider()
-step_bar(2)
+st.subheader(t["sec_result"])
 
 submitted = st.button(t["submit_btn"], use_container_width=True, type="primary")
 
