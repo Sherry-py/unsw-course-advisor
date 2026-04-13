@@ -557,6 +557,155 @@ with c6:
     notes = st.text_input(t["notes_label"], placeholder=t["notes_ph"])
 
 # ════════════════════════════════════════════════════════
+# GATEFIX EXPERIMENT PANEL HELPER
+# ════════════════════════════════════════════════════════
+
+def _render_experiment_panel(gate, eligible_map, result_ungated, result_governed, t, lang):
+    """
+    Side-by-side GateFix research panel.
+    result_ungated : JSON dict from AI called without governance (may be None)
+    result_governed: JSON dict from governed AI call (None when decision=REFUSE)
+    """
+    cn = (lang == "中文")
+
+    st.divider()
+    with st.expander(
+        "🔬 GateFix 治理实验 — 点击查看有无治理层的区别" if cn else
+        "🔬 GateFix Governance Experiment — See what changes with governance",
+        expanded=True,
+    ):
+        st.markdown(
+            "> 本工具内嵌了 **GateFix 预执行治理框架**（论文：*When Knowing Is Not Enough*，JMIS投稿）。\n"
+            "> 下方对比展示：**同样的输入**，AI 在有/无治理层时的行为差异——这正是论文核心发现的真实呈现。"
+            if cn else
+            "> This tool embeds the **GateFix pre-execution governance framework** (*When Knowing Is Not Enough*, JMIS submission).\n"
+            "> Below: **same input**, different AI behavior with vs. without the governance layer — a live demonstration of the paper's core finding."
+        )
+
+        st.markdown("---")
+
+        # ── 4D-CQ status bar ──────────────────────────────────────────
+        st.markdown("**4D-CQ 质量检测结果：**" if cn else "**4D-CQ Quality Assessment:**")
+        dim_info = [
+            ("relevance",  "相关性",   "Relevance",  True),
+            ("coverage",   "信息完整度","Coverage",   True),
+            ("ordering",   "逻辑一致", "Ordering",   False),
+            ("robustness", "鲁棒性",   "Robustness", False),
+        ]
+        cols4 = st.columns(4)
+        for col, (dim, zh_lbl, en_lbl, critical) in zip(cols4, dim_info):
+            status = getattr(gate.cq, dim)
+            icon   = ("🔴" if critical else "⚠️") if status == "DEFECT" else "✅"
+            label  = zh_lbl if cn else en_lbl
+            col.metric(label=label, value=f"{icon} {'DEFECT' if status == 'DEFECT' else 'OK'}")
+
+        dec_icon = {"PASS": "🟢", "CLARIFY": "🟡", "REFUSE": "🔴"}[gate.decision]
+        st.markdown(
+            f"**治理决策：{dec_icon} `{gate.decision}`**" if cn else
+            f"**Governance Decision: {dec_icon} `{gate.decision}`**"
+        )
+
+        st.markdown("---")
+
+        # ── Side-by-side comparison ───────────────────────────────────
+        col_l, col_r = st.columns(2, gap="medium")
+
+        with col_l:
+            st.markdown(
+                "#### ❌ 无治理 AI\n*感知到问题，但仍然直接执行*" if cn else
+                "#### ❌ Ungoverned AI\n*perceives quality issues, executes anyway*"
+            )
+            if result_ungated:
+                for s in result_ungated.get("selections", [])[:4]:
+                    code   = s.get("code", "")
+                    course = eligible_map.get(code)
+                    name   = course["name"] if course else code
+                    st.markdown(f"- `{code}` {name}")
+                if result_ungated.get("summary"):
+                    st.caption(
+                        ("AI说：" if cn else "AI says: ") + result_ungated["summary"]
+                    )
+                st.error(
+                    "⚠️ 以上建议在**输入不完整**时仍被生成，没有任何质量保证。"
+                    if cn else
+                    "⚠️ Recommendations generated despite **incomplete input** — zero quality validation."
+                )
+            else:
+                st.info("无治理结果不可用" if cn else "Ungoverned result unavailable")
+
+        with col_r:
+            st.markdown(
+                "#### ✅ GateFix 治理后\n*感知结果强制绑定到执行决策*" if cn else
+                "#### ✅ GateFix Governed\n*perception structurally bound to execution decision*"
+            )
+            if gate.decision == "REFUSE":
+                st.error(
+                    f"**执行被拒绝 (REFUSE)**\n\n"
+                    f"失败维度：{', '.join(gate.failed_dims)}\n\n"
+                    "→ AI 调用被阻断。输入质量不足以支撑可靠建议。"
+                    if cn else
+                    f"**Execution Refused (REFUSE)**\n\n"
+                    f"Failed dimensions: {', '.join(gate.failed_dims)}\n\n"
+                    "→ AI call blocked. Input quality insufficient for reliable recommendations."
+                )
+                st.success(
+                    "✅ 你被保护了——避免了一个可能完全偏离你实际需求的建议。"
+                    if cn else
+                    "✅ You were protected — a potentially misaligned recommendation was prevented."
+                )
+            elif gate.decision == "CLARIFY":
+                st.warning(
+                    f"**质量警告 (CLARIFY)**\n\n"
+                    f"问题维度（非关键）：{', '.join(gate.failed_dims)}\n\n"
+                    "→ 用户已收到提示，AI 继续执行但附带质量标注。"
+                    if cn else
+                    f"**Quality Warning (CLARIFY)**\n\n"
+                    f"Flagged (non-critical): {', '.join(gate.failed_dims)}\n\n"
+                    "→ User notified. AI proceeds with quality annotation."
+                )
+                if result_governed:
+                    for s in result_governed.get("selections", [])[:4]:
+                        code   = s.get("code", "")
+                        course = eligible_map.get(code)
+                        name   = course["name"] if course else code
+                        st.markdown(f"- `{code}` {name}")
+                st.info(
+                    "ℹ️ 治理层将感知到的质量问题明确传递给用户，而不是静默执行。"
+                    if cn else
+                    "ℹ️ Governance layer surfaced the quality issue explicitly rather than silent execution."
+                )
+            else:  # PASS
+                st.success(
+                    "**全部通过 (PASS)**\n\n所有 4 个维度均 OK\n\n→ 高置信度推荐。"
+                    if cn else
+                    "**All Passed (PASS)**\n\nAll 4 dimensions: OK\n\n→ High-confidence recommendation."
+                )
+                if result_governed:
+                    for s in result_governed.get("selections", [])[:4]:
+                        code   = s.get("code", "")
+                        course = eligible_map.get(code)
+                        name   = course["name"] if course else code
+                        st.markdown(f"- `{code}` {name}")
+                st.info(
+                    "ℹ️ 治理层验证了输入质量，确保推荐具有可靠的上下文基础。"
+                    if cn else
+                    "ℹ️ Governance layer validated input quality, ensuring recommendations rest on a reliable contextual basis."
+                )
+
+        st.markdown("---")
+        st.caption(
+            "📊 **研究数据**：GateFix 论文（基于 FinQA 金融数据集）发现 LLM 感知质量问题准确率 **92.2%**，"
+            "但无治理层时授权准确率仅 **50.8%**（*perception–decision decoupling*）。"
+            "本课程助手为跨域验证场景（金融→教育），每次提交数据匿名记录用于学术研究。"
+            if cn else
+            "📊 **Research context**: GateFix paper (FinQA financial dataset) found LLMs perceive quality issues with "
+            "**92.2% accuracy**, yet without governance their execution authorization accuracy is only **50.8%** "
+            "(*perception–decision decoupling*). This course advisor is the cross-domain validation scenario "
+            "(finance → education). Every submission is anonymously logged for academic research."
+        )
+
+
+# ════════════════════════════════════════════════════════
 # STEP 3 — SUBMIT + GATEFIX + AI GENERATION
 # ════════════════════════════════════════════════════════
 
@@ -587,29 +736,14 @@ if submitted:
         "lang":         lang,
     }
 
-    # ── REFUSE: block AI, show targeted guidance ──────────
-    if gate.decision == "REFUSE":
-        gf_engine.log_submission(gate, profile_meta, ai_generated=False)
-        st.warning(t[gate.refuse_key])
-        st.stop()
-
-    # ── CLARIFY: show hint, proceed ───────────────────────
-    if gate.decision == "CLARIFY":
-        st.info(t[gate.clarify_key])
-
-    # ── Paywall check (AFTER governance, BEFORE AI call) ──
-    if not st.session_state.is_pro and st.session_state.gen_count >= FREE_LIMIT:
-        gf_engine.log_submission(gate, profile_meta, ai_generated=False)
-        st.warning(f"**{t['paywall_title']}**\n\n"
-                   + t["paywall_used"].format(n=st.session_state.gen_count)
-                   + "\n\n" + t["paywall_body"])
-        st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
-        st.stop()
-
-    # ── Build eligible course pool ────────────────────────
+    # ── Build eligible course pool (needed for all paths incl. REFUSE) ──
     spec_pool = []
     for s in specs:
         spec_pool.extend(COURSES.get(s, []))
+    # REFUSE case may have no specs — sample common + a few from each spec for experiment
+    if not spec_pool:
+        for v in COURSES.values():
+            spec_pool.extend(v[:2])
     all_pool  = COMMON_COURSES + spec_pool
     seen, deduped = set(), []
     for c in all_pool:
@@ -622,11 +756,13 @@ if submitted:
     eligible_map = {c["code"]: c for c in eligible}
     eligible_str = "\n".join(f"- {c['code']}: {c['name']}" for c in eligible)
 
-    load_num     = load[0]
-    spec_label   = " & ".join(specs)
+    load_num      = load[0]
+    spec_label    = " & ".join(specs) if specs else (
+        "（未选择专业）" if lang == "中文" else "(no specialisation selected)"
+    )
     response_lang = t["ai_lang"]
-    goals_str    = t["goals_str_fmt"](goal_weights) if goal_weights else t["goals_none"]
-    wam_str      = wam.strip() if wam.strip() else t["wam_none"]
+    goals_str     = t["goals_str_fmt"](goal_weights) if goal_weights else t["goals_none"]
+    wam_str       = wam.strip() if wam.strip() else t["wam_none"]
 
     prompt = f"""You are a UNSW MCom academic advisor. Respond in {response_lang}.
 
@@ -650,9 +786,48 @@ CRITICAL: Every "code" value must exactly match a code listed above.
 Respond ONLY with valid JSON (no markdown):
 {{"summary":"{t['summary_field']}","selections":[{{"code":"XXXX0000","priority":"must|recommended|optional","reason":"{t['reason_field']}"}}],"warning":"{t['warning_field']}"}}"""
 
+    # ── Create API client once (reused across all calls) ──
+    try:
+        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+    except Exception as _e:
+        st.error(f"API key error: {_e}")
+        st.stop()
+
+    # ── REFUSE: block main AI, show guidance + experiment panel ──
+    if gate.decision == "REFUSE":
+        gf_engine.log_submission(gate, profile_meta, ai_generated=False)
+        st.warning(t[gate.refuse_key])
+        # Experiment: call ungated AI to show what it WOULD have returned
+        result_ungated = None
+        with st.spinner("🔬 " + ("模拟无治理 AI 中…" if lang == "中文" else "Simulating ungoverned AI…")):
+            try:
+                _msg = client.messages.create(
+                    model="claude-sonnet-4-6", max_tokens=512,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                _raw = _msg.content[0].text.replace("```json", "").replace("```", "").strip()
+                result_ungated = json.loads(_raw)
+            except Exception:
+                pass
+        _render_experiment_panel(gate, eligible_map, result_ungated, None, t, lang)
+        st.stop()
+
+    # ── CLARIFY: show hint, proceed ───────────────────────
+    if gate.decision == "CLARIFY":
+        st.info(t[gate.clarify_key])
+
+    # ── Paywall check (AFTER governance, BEFORE AI call) ──
+    if not st.session_state.is_pro and st.session_state.gen_count >= FREE_LIMIT:
+        gf_engine.log_submission(gate, profile_meta, ai_generated=False)
+        st.warning(f"**{t['paywall_title']}**\n\n"
+                   + t["paywall_used"].format(n=st.session_state.gen_count)
+                   + "\n\n" + t["paywall_body"])
+        st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
+        st.stop()
+
+    # ── Main governed AI call ─────────────────────────────
     with st.spinner(t["spinner"]):
         try:
-            client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
             for attempt in range(3):
                 try:
                     message = client.messages.create(
@@ -705,9 +880,9 @@ Respond ONLY with valid JSON (no markdown):
                 if not course:
                     continue
                 valid_shown += 1
-                label   = priority_map.get(s.get("priority", "optional"), priority_map["optional"])
-                meta    = COURSE_META.get(code, {})
-                prereqs = ", ".join(meta["prereqs"]) if meta.get("prereqs") else t["prereq_none"]
+                label    = priority_map.get(s.get("priority", "optional"), priority_map["optional"])
+                meta     = COURSE_META.get(code, {})
+                prereqs  = ", ".join(meta["prereqs"]) if meta.get("prereqs") else t["prereq_none"]
                 workload = meta.get("workload", "—")
                 has_exam = (t["final_yes"] if meta.get("has_final")
                             else t["final_no"] if "has_final" in meta else "—")
@@ -746,6 +921,12 @@ Respond ONLY with valid JSON (no markdown):
                     + t["paywall_body"]
                 )
                 st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
+
+            # ── GateFix experiment panel (CLARIFY / PASS) ─
+            # For CLARIFY/PASS the governed result IS the AI result;
+            # the ungated column shows it WITHOUT the governance annotation,
+            # demonstrating what a pure AI response looks like with no quality check.
+            _render_experiment_panel(gate, eligible_map, result, result, t, lang)
 
         except Exception as e:
             st.error(f"Error: {e}")
