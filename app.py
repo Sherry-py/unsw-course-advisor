@@ -487,7 +487,7 @@ def step_bar(active: int):
 # STEP 1 — GOALS (Coverage dimension: CRITICAL)
 # ════════════════════════════════════════════════════════
 
-step_bar(0)
+st.subheader(t["sec_goals"])
 
 selected_goals = st.multiselect(t["goals_label"], t["goals_options"])
 custom_goal    = st.text_input(t["custom_goal_label"], placeholder=t["custom_goal_ph"])
