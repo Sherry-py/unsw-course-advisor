@@ -578,24 +578,28 @@ def _render_experiment_panel(gate, eligible_map, result_ungated, result_governed
         expanded=True,
     ):
         # ── 4D-CQ status bar ──────────────────────────────────────────
+        # label, zh_ok, zh_fail, en_ok, en_fail, critical
         dim_info = [
-            ("relevance",  "专业相关性", "Relevance",  True),
-            ("coverage",   "信息完整度", "Coverage",   True),
-            ("ordering",   "逻辑一致性", "Ordering",   False),
-            ("robustness", "输入稳健性", "Robustness", False),
+            ("relevance",  "专业方向",   "✅ 已选择",  "🔴 未选择",  "Specialisation", "✅ Selected",  "🔴 Not selected",  True),
+            ("coverage",   "毕业目标",   "✅ 已填写",  "🔴 未填写",  "Goals",          "✅ Provided",  "🔴 Not provided",  True),
+            ("ordering",   "学分核对",   "✅ 正常",    "⚠️ 请检查",  "Credit check",   "✅ Consistent","⚠️ Please verify", False),
+            ("robustness", "补充信息",   "✅ 已填写",  "⚠️ 建议补充","Extra details",  "✅ Provided",  "⚠️ Optional",      False),
         ]
         cols4 = st.columns(4)
-        for col, (dim, zh_lbl, en_lbl, critical) in zip(cols4, dim_info):
-            status = getattr(gate.cq, dim)
-            ok     = (status == "OK")
-            icon   = "✅" if ok else ("🔴" if critical else "⚠️")
-            val    = "通过" if ok else "未通过"
-            label  = zh_lbl if cn else en_lbl
-            col.metric(label=label, value=f"{icon} {val if cn else status}")
+        for col, (dim, zh_lbl, zh_ok, zh_fail, en_lbl, en_ok, en_fail, critical) in zip(cols4, dim_info):
+            ok    = (getattr(gate.cq, dim) == "OK")
+            label = zh_lbl if cn else en_lbl
+            val   = (zh_ok if ok else zh_fail) if cn else (en_ok if ok else en_fail)
+            col.metric(label=label, value=val)
 
+        dec_label_full = {
+            "PASS":    "✅ 已通过" if cn else "✅ Ready",
+            "CLARIFY": "⚠️ 建议补充信息" if cn else "⚠️ Proceeding with note",
+            "REFUSE":  "❌ 请完善必填项后重试" if cn else "❌ Please complete required fields",
+        }
         st.markdown(
             f"<div style='margin:10px 0 4px 0;font-size:13px;color:{dec_color};font-weight:600'>"
-            f"{'授权结果' if cn else 'Authorization'}: {dec_label[gate.decision]}"
+            f"{dec_label_full[gate.decision]}"
             f"</div>",
             unsafe_allow_html=True,
         )
