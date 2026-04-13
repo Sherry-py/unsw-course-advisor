@@ -562,45 +562,42 @@ with c6:
 
 def _render_experiment_panel(gate, eligible_map, result_ungated, result_governed, t, lang):
     """
-    Side-by-side GateFix research panel.
+    Side-by-side GateFix diagnostic panel.
     result_ungated : JSON dict from AI called without governance (may be None)
     result_governed: JSON dict from governed AI call (None when decision=REFUSE)
     """
     cn = (lang == "中文")
 
+    dec_color = {"PASS": "#22c55e", "CLARIFY": "#f59e0b", "REFUSE": "#ef4444"}[gate.decision]
+    dec_label = {"PASS": "通过", "CLARIFY": "待确认", "REFUSE": "已拒绝"} if cn else \
+                {"PASS": "PASS", "CLARIFY": "CLARIFY", "REFUSE": "REFUSED"}
+
     st.divider()
     with st.expander(
-        "🔬 GateFix 治理实验 — 点击查看有无治理层的区别" if cn else
-        "🔬 GateFix Governance Experiment — See what changes with governance",
+        "🛡️ GateFix 输入质量诊断" if cn else "🛡️ GateFix Input Quality Diagnostics",
         expanded=True,
     ):
-        st.markdown(
-            "本助手在生成建议前，会对你的输入进行 **GateFix 质量检测**，确保 AI 只在信息充分时才执行——而不是在任何情况下都给出看似合理的答案。"
-            if cn else
-            "Before generating recommendations, this advisor runs a **GateFix quality check** on your input — ensuring AI only executes when context is sufficient, rather than producing plausible-sounding answers regardless of input quality."
-        )
-
-        st.markdown("---")
-
         # ── 4D-CQ status bar ──────────────────────────────────────────
-        st.markdown("**4D-CQ 质量检测结果：**" if cn else "**4D-CQ Quality Assessment:**")
         dim_info = [
-            ("relevance",  "相关性",   "Relevance",  True),
-            ("coverage",   "信息完整度","Coverage",   True),
-            ("ordering",   "逻辑一致", "Ordering",   False),
-            ("robustness", "鲁棒性",   "Robustness", False),
+            ("relevance",  "专业相关性", "Relevance",  True),
+            ("coverage",   "信息完整度", "Coverage",   True),
+            ("ordering",   "逻辑一致性", "Ordering",   False),
+            ("robustness", "输入稳健性", "Robustness", False),
         ]
         cols4 = st.columns(4)
         for col, (dim, zh_lbl, en_lbl, critical) in zip(cols4, dim_info):
             status = getattr(gate.cq, dim)
-            icon   = ("🔴" if critical else "⚠️") if status == "DEFECT" else "✅"
+            ok     = (status == "OK")
+            icon   = "✅" if ok else ("🔴" if critical else "⚠️")
+            val    = "通过" if ok else "未通过"
             label  = zh_lbl if cn else en_lbl
-            col.metric(label=label, value=f"{icon} {'DEFECT' if status == 'DEFECT' else 'OK'}")
+            col.metric(label=label, value=f"{icon} {val if cn else status}")
 
-        dec_icon = {"PASS": "🟢", "CLARIFY": "🟡", "REFUSE": "🔴"}[gate.decision]
         st.markdown(
-            f"**治理决策：{dec_icon} `{gate.decision}`**" if cn else
-            f"**Governance Decision: {dec_icon} `{gate.decision}`**"
+            f"<div style='margin:10px 0 4px 0;font-size:13px;color:{dec_color};font-weight:600'>"
+            f"{'授权结果' if cn else 'Authorization'}: {dec_label[gate.decision]}"
+            f"</div>",
+            unsafe_allow_html=True,
         )
 
         st.markdown("---")
@@ -608,86 +605,61 @@ def _render_experiment_panel(gate, eligible_map, result_ungated, result_governed
         # ── Side-by-side comparison ───────────────────────────────────
         col_l, col_r = st.columns(2, gap="medium")
 
+        def _course_list(res):
+            items = []
+            for s in (res or {}).get("selections", [])[:4]:
+                code   = s.get("code", "")
+                course = eligible_map.get(code)
+                name   = course["name"] if course else code
+                items.append(f"<li style='margin:4px 0'><code>{code}</code> {name}</li>")
+            return "<ul style='padding-left:16px;margin:8px 0'>" + "".join(items) + "</ul>" if items else ""
+
         with col_l:
             st.markdown(
-                "#### ❌ 无治理 AI\n*感知到问题，但仍然直接执行*" if cn else
-                "#### ❌ Ungoverned AI\n*perceives quality issues, executes anyway*"
+                f"<div style='font-weight:600;margin-bottom:6px'>{'未治理' if cn else 'Without GateFix'}</div>",
+                unsafe_allow_html=True,
             )
             if result_ungated:
-                for s in result_ungated.get("selections", [])[:4]:
-                    code   = s.get("code", "")
-                    course = eligible_map.get(code)
-                    name   = course["name"] if course else code
-                    st.markdown(f"- `{code}` {name}")
+                st.markdown(_course_list(result_ungated), unsafe_allow_html=True)
                 if result_ungated.get("summary"):
-                    st.caption(
-                        ("AI说：" if cn else "AI says: ") + result_ungated["summary"]
-                    )
-                st.error(
-                    "⚠️ 以上建议在**输入不完整**时仍被生成，没有任何质量保证。"
-                    if cn else
-                    "⚠️ Recommendations generated despite **incomplete input** — zero quality validation."
-                )
+                    st.caption(result_ungated["summary"])
             else:
-                st.info("无治理结果不可用" if cn else "Ungoverned result unavailable")
+                st.caption("—")
 
         with col_r:
             st.markdown(
-                "#### ✅ GateFix 治理后\n*感知结果强制绑定到执行决策*" if cn else
-                "#### ✅ GateFix Governed\n*perception structurally bound to execution decision*"
+                f"<div style='font-weight:600;color:{dec_color};margin-bottom:6px'>"
+                f"{'GateFix 治理后' if cn else 'With GateFix'}</div>",
+                unsafe_allow_html=True,
             )
             if gate.decision == "REFUSE":
-                st.error(
-                    f"**执行被拒绝 (REFUSE)**\n\n"
-                    f"失败维度：{', '.join(gate.failed_dims)}\n\n"
-                    "→ AI 调用被阻断。输入质量不足以支撑可靠建议。"
-                    if cn else
-                    f"**Execution Refused (REFUSE)**\n\n"
-                    f"Failed dimensions: {', '.join(gate.failed_dims)}\n\n"
-                    "→ AI call blocked. Input quality insufficient for reliable recommendations."
-                )
-                st.success(
-                    "✅ 你被保护了——避免了一个可能完全偏离你实际需求的建议。"
-                    if cn else
-                    "✅ You were protected — a potentially misaligned recommendation was prevented."
+                st.markdown(
+                    f"<div style='color:#ef4444;font-size:13px'>"
+                    f"{'🚫 执行已阻断' if cn else '🚫 Execution blocked'}"
+                    f"</div>",
+                    unsafe_allow_html=True,
                 )
             elif gate.decision == "CLARIFY":
-                st.warning(
-                    f"**质量警告 (CLARIFY)**\n\n"
-                    f"问题维度（非关键）：{', '.join(gate.failed_dims)}\n\n"
-                    "→ 用户已收到提示，AI 继续执行但附带质量标注。"
-                    if cn else
-                    f"**Quality Warning (CLARIFY)**\n\n"
-                    f"Flagged (non-critical): {', '.join(gate.failed_dims)}\n\n"
-                    "→ User notified. AI proceeds with quality annotation."
-                )
                 if result_governed:
-                    for s in result_governed.get("selections", [])[:4]:
-                        code   = s.get("code", "")
-                        course = eligible_map.get(code)
-                        name   = course["name"] if course else code
-                        st.markdown(f"- `{code}` {name}")
-                st.info(
-                    "ℹ️ 治理层将感知到的质量问题明确传递给用户，而不是静默执行。"
-                    if cn else
-                    "ℹ️ Governance layer surfaced the quality issue explicitly rather than silent execution."
+                    st.markdown(_course_list(result_governed), unsafe_allow_html=True)
+                    if result_governed.get("summary"):
+                        st.caption(result_governed["summary"])
+                st.markdown(
+                    f"<div style='color:#f59e0b;font-size:12px;margin-top:6px'>"
+                    f"{'⚠️ 已标注质量提示' if cn else '⚠️ Quality flag annotated'}"
+                    f"</div>",
+                    unsafe_allow_html=True,
                 )
             else:  # PASS
-                st.success(
-                    "**全部通过 (PASS)**\n\n所有 4 个维度均 OK\n\n→ 高置信度推荐。"
-                    if cn else
-                    "**All Passed (PASS)**\n\nAll 4 dimensions: OK\n\n→ High-confidence recommendation."
-                )
                 if result_governed:
-                    for s in result_governed.get("selections", [])[:4]:
-                        code   = s.get("code", "")
-                        course = eligible_map.get(code)
-                        name   = course["name"] if course else code
-                        st.markdown(f"- `{code}` {name}")
-                st.info(
-                    "ℹ️ 治理层验证了输入质量，确保推荐具有可靠的上下文基础。"
-                    if cn else
-                    "ℹ️ Governance layer validated input quality, ensuring recommendations rest on a reliable contextual basis."
+                    st.markdown(_course_list(result_governed), unsafe_allow_html=True)
+                    if result_governed.get("summary"):
+                        st.caption(result_governed["summary"])
+                st.markdown(
+                    f"<div style='color:#22c55e;font-size:12px;margin-top:6px'>"
+                    f"{'✅ 全部维度通过验证' if cn else '✅ All dimensions verified'}"
+                    f"</div>",
+                    unsafe_allow_html=True,
                 )
 
         st.markdown("---")
