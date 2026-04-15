@@ -1984,3 +1984,4 @@ Respond ONLY with valid JSON (no markdown):
 
 st.divider()
 st.caption(t["footer"])
+st.caption("v20260415-e462af9")
