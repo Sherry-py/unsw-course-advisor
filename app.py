@@ -1733,8 +1733,9 @@ Respond ONLY with valid JSON (no markdown):
                        else ("Built from: "+"; ".join(_used_en) if _used_en else "Generated from your full profile")
 
             # ── Random student character ──────────────────
+            _char_seed = abs(hash(st.session_state["session_id"] + str(st.session_state.gen_count)))
             st.markdown(
-                _render_result_char(seed=st.session_state.gen_count, cn=cn),
+                _render_result_char(seed=_char_seed, cn=cn),
                 unsafe_allow_html=True,
             )
 
