@@ -1954,7 +1954,8 @@ Respond ONLY with valid JSON (no markdown):
                                 lang=lang,
                             )
                             st.session_state[_fb_done_key] = True
-                            st.rerun()
+                            # No st.rerun() here — button click already triggers rerun,
+                            # and st.rerun() inside try/except gets swallowed as Exception
 
                 st.text_input(
                     "　",
@@ -1984,4 +1985,4 @@ Respond ONLY with valid JSON (no markdown):
 
 st.divider()
 st.caption(t["footer"])
-st.caption("v20260415-e462af9")
+st.caption("v20260415-fix-rerun")
