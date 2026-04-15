@@ -112,11 +112,28 @@ if not st.session_state.admin_auth:
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 try:
     import supabase_logger
+    # ── Supabase diagnostics (temporary) ──
+    import requests as _req, streamlit as _st
+    _url = _st.secrets.get("SUPABASE_URL", "")
+    _key = _st.secrets.get("SUPABASE_KEY", "")
+    _st.caption(f"DEBUG — URL={'set' if _url else 'MISSING'}, KEY={'set (len='+str(len(_key))+')' if _key else 'MISSING'}")
+    if _url and _key:
+        _test_resp = _req.post(
+            f"{str(_url).rstrip('/')}/rest/v1/gatefix_log",
+            headers={"apikey": _key, "Authorization": f"Bearer {_key}",
+                     "Content-Type": "application/json", "Prefer": "return=minimal"},
+            json={"id": "debug-test-001", "timestamp": "2026-01-01T00:00:00Z",
+                  "decision": "TEST"},
+            timeout=5,
+        )
+        _st.caption(f"DEBUG — test write status: {_test_resp.status_code} | {_test_resp.text[:200]}")
+    # ── end diagnostics ──
     records = supabase_logger.read_records("gatefix_log")
     _source = f"Supabase ({len(records)} records)"
-except Exception:
+except Exception as _e:
     records = []
     _source = None
+    import streamlit as _st; _st.caption(f"DEBUG — exception: {_e}")
 
 if not records and os.path.exists(LOG_PATH):
     with open(LOG_PATH, encoding="utf-8") as f:
