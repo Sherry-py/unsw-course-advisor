@@ -147,8 +147,16 @@ def log_submission(gate: GateResult, profile: dict, ai_generated: bool):
         "counterfactual_decision":profile.get("counterfactual_decision", ""),
         "overlap_rate":           profile.get("overlap_rate", None),
     }
+    # Write to local JSONL
     try:
         with open(LOG_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
     except Exception:
-        pass  # never let logging crash the app
+        pass
+
+    # Dual-write to Google Sheets (cloud persistence)
+    try:
+        import sheets_logger
+        sheets_logger.append_record("gatefix_log", record)
+    except Exception:
+        pass
