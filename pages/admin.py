@@ -112,28 +112,11 @@ if not st.session_state.admin_auth:
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 try:
     import supabase_logger
-    # ── Supabase diagnostics (temporary) ──
-    import requests as _req, streamlit as _st
-    _url = _st.secrets.get("SUPABASE_URL", "")
-    _key = _st.secrets.get("SUPABASE_KEY", "")
-    _st.caption(f"DEBUG — URL={'set' if _url else 'MISSING'}, KEY={'set (len='+str(len(_key))+')' if _key else 'MISSING'}")
-    if _url and _key:
-        _test_resp = _req.post(
-            f"{str(_url).rstrip('/')}/rest/v1/gatefix_log",
-            headers={"apikey": _key, "Authorization": f"Bearer {_key}",
-                     "Content-Type": "application/json", "Prefer": "return=minimal"},
-            json={"id": "debug-test-001", "timestamp": "2026-01-01T00:00:00Z",
-                  "decision": "TEST"},
-            timeout=5,
-        )
-        _st.caption(f"DEBUG — test write status: {_test_resp.status_code} | {_test_resp.text[:200]}")
-    # ── end diagnostics ──
     records = supabase_logger.read_records("gatefix_log")
     _source = f"Supabase ({len(records)} records)"
-except Exception as _e:
+except Exception:
     records = []
     _source = None
-    import streamlit as _st; _st.caption(f"DEBUG — exception: {_e}")
 
 if not records and os.path.exists(LOG_PATH):
     with open(LOG_PATH, encoding="utf-8") as f:
@@ -236,10 +219,10 @@ with col_tbl:
     st.markdown("<div style='font-size:11px;color:#666;margin-bottom:6px'>Table 1. Submission profile</div>", unsafe_allow_html=True)
     profile_df = pd.DataFrame([{
         "Field": "Avg. goals per submission",
-        "Value": f"{sum(r.get('n_goals',0) for r in records)/n:.1f}"
+        "Value": f"{sum(r.get('n_goals') or 0 for r in records)/n:.1f}"
     },{
         "Field": "Avg. specialisations selected",
-        "Value": f"{sum(r.get('n_specs',0) for r in records)/n:.1f}"
+        "Value": f"{sum(r.get('n_specs') or 0 for r in records)/n:.1f}"
     },{
         "Field": "Submissions with WAM provided",
         "Value": f"{100*sum(1 for r in records if r.get('has_wam'))/n:.0f}%"
@@ -248,7 +231,7 @@ with col_tbl:
         "Value": f"{100*sum(1 for r in records if r.get('has_notes'))/n:.0f}%"
     },{
         "Field": "Submissions with completed courses",
-        "Value": f"{100*sum(1 for r in records if r.get('n_completed',0)>0)/n:.0f}%"
+        "Value": f"{100*sum(1 for r in records if (r.get('n_completed') or 0)>0)/n:.0f}%"
     },{
         "Field": "Language (Chinese / English)",
         "Value": f"{100*sum(1 for r in records if r.get('lang')=='中文')//n}% / {100*sum(1 for r in records if r.get('lang')!='中文')//n}%"
