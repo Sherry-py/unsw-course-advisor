@@ -27,10 +27,19 @@ def _log_feedback(rating: str, comment: str, session_id: str, gate_decision: str
     except Exception:
         pass
 
-    # Dual-write to Supabase
+    # Dual-write to Supabase (direct call, no cache)
     try:
-        import supabase_logger
-        supabase_logger.append_record("feedback_log", record)
+        import requests as _r, streamlit as _st2
+        _sb_url = str(_st2.secrets.get("SUPABASE_URL", "")).rstrip("/")
+        _sb_key = str(_st2.secrets.get("SUPABASE_KEY", ""))
+        if _sb_url and _sb_key:
+            _r.post(
+                f"{_sb_url}/rest/v1/feedback_log",
+                headers={"apikey": _sb_key, "Authorization": f"Bearer {_sb_key}",
+                         "Content-Type": "application/json", "Prefer": "return=minimal"},
+                json=record,
+                timeout=5,
+            )
     except Exception:
         pass
 
