@@ -2,3 +2,4 @@
 __pycache__/
 *.pyc
 gatefix_log.jsonl
+feedback_log.jsonl

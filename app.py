@@ -2,14 +2,311 @@ import streamlit as st
 import anthropic
 import json
 import time
+import os
 import plotly.express as px
 import governance as gf_engine
+from datetime import datetime, timezone
+
+# ── Feedback logging ──────────────────────────────────────────────────────────
+_FEEDBACK_LOG = os.path.join(os.path.dirname(__file__), "feedback_log.jsonl")
+
+def _log_feedback(rating: str, comment: str, session_id: str, gate_decision: str, lang: str):
+    import uuid
+    record = {
+        "id":           str(uuid.uuid4()),
+        "timestamp":    datetime.now(timezone.utc).isoformat(),
+        "session_id":   session_id,
+        "gate_decision":gate_decision,
+        "rating":       rating,          # "bad" | "ok" | "great"
+        "comment":      comment.strip() if comment else "",
+        "lang":         lang,
+    }
+    try:
+        with open(_FEEDBACK_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
 
 st.set_page_config(
     page_title="UNSW MCom Course Advisor",
     page_icon="🎓",
     layout="centered",
 )
+
+# ── Pixel town CSS ────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* ── Background: dark pixel grid ── */
+.stApp {
+  background-color: #0d0d1f !important;
+  background-image:
+    linear-gradient(rgba(129,140,248,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(129,140,248,.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ── Main title ── */
+.stApp h1 {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 17px !important;
+  color: #a5b4fc !important;
+  text-shadow: 3px 3px 0 #1e1b4b, 6px 6px 0 #0d0d1f !important;
+  letter-spacing: 1px;
+  line-height: 1.7 !important;
+}
+
+/* ── Section subheadings ── */
+.stApp h2, .stApp h3 {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 10px !important;
+  color: #34d399 !important;
+  letter-spacing: 1px;
+  line-height: 2 !important;
+}
+
+/* ── Caption / small text ── */
+.stApp .stCaption {
+  color: #6b7280 !important;
+  font-family: 'Courier New', monospace !important;
+  font-size: 11px !important;
+}
+
+/* ── Buttons – pixel press style ── */
+.stButton > button {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 8px !important;
+  background: #1e1b4b !important;
+  border: 3px solid #4f46e5 !important;
+  border-radius: 0 !important;
+  color: #c7d2fe !important;
+  box-shadow: 4px 4px 0 #312e81 !important;
+  transition: transform .08s, box-shadow .08s !important;
+  letter-spacing: .5px;
+}
+.stButton > button:hover {
+  transform: translate(2px,2px) !important;
+  box-shadow: 2px 2px 0 #312e81 !important;
+}
+.stButton > button:active {
+  transform: translate(4px,4px) !important;
+  box-shadow: 0 0 0 #312e81 !important;
+}
+/* Primary submit button */
+.stButton > button[kind="primary"] {
+  background: #4f46e5 !important;
+  border: 3px solid #818cf8 !important;
+  color: #fff !important;
+  box-shadow: 4px 4px 0 #1e1b4b !important;
+  font-size: 10px !important;
+}
+
+/* ── Text inputs ── */
+.stTextInput > div > div > input {
+  background: #0d0d1f !important;
+  border: 2px solid #374151 !important;
+  border-radius: 0 !important;
+  color: #e5e7eb !important;
+  font-family: 'Courier New', monospace !important;
+  font-size: 13px !important;
+}
+.stTextInput > div > div > input:focus {
+  border: 2px solid #818cf8 !important;
+  box-shadow: 0 0 0 !important;
+}
+/* ── Placeholder text — bright enough to read ── */
+.stTextInput > div > div > input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* ── Labels / widget text ── */
+.stTextInput label, .stSelectbox label,
+.stMultiSelect label, .stRadio label,
+.stMarkdown p, .stMarkdown li {
+  color: #cbd5e1 !important;
+  font-family: 'Courier New', monospace !important;
+}
+
+/* ── Radio options ── */
+.stRadio > div label {
+  color: #94a3b8 !important;
+  font-family: 'Courier New', monospace !important;
+}
+.stRadio > div label:hover { color: #e2e8f0 !important; }
+
+/* ── Plotly chart transparent bg ── */
+.js-plotly-plot .plotly, .js-plotly-plot .plotly .main-svg {
+  background: transparent !important;
+}
+
+/* ── Selectbox ── */
+.stSelectbox > div > div {
+  background: #0d0d1f !important;
+  border: 2px solid #374151 !important;
+  border-radius: 0 !important;
+  color: #e5e7eb !important;
+}
+
+/* ── Multiselect ── */
+.stMultiSelect > div {
+  border: 2px solid #374151 !important;
+  border-radius: 0 !important;
+  background: #0d0d1f !important;
+}
+.stMultiSelect span[data-baseweb="tag"] {
+  background: #1e1b4b !important;
+  border-radius: 0 !important;
+  border: 1px solid #4f46e5 !important;
+}
+
+/* ── Dividers ── */
+hr {
+  border-color: #1f2937 !important;
+}
+
+/* ── Expander ── */
+.streamlit-expanderHeader {
+  background: #0d0d1f !important;
+  border: 2px solid #1f2937 !important;
+  border-radius: 0 !important;
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 8px !important;
+  color: #818cf8 !important;
+}
+.streamlit-expanderContent {
+  background: #0d0d1f !important;
+  border: 2px solid #1f2937 !important;
+  border-top: none !important;
+}
+
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+  background: #0a0a18 !important;
+  border-right: 3px solid #1f2937 !important;
+}
+
+/* ── Metric cards (GateFix 4D) ── */
+[data-testid="stMetric"] {
+  background: #111827 !important;
+  border: 2px solid #374151 !important;
+  border-radius: 0 !important;
+  padding: 8px !important;
+}
+
+/* ── BaseWeb dropdown overlay (multiselect / selectbox menus) ── */
+[data-baseweb="popover"] > div,
+[data-baseweb="popover"] {
+  background: #0d0d1f !important;
+  border: 2px solid #4f46e5 !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 #1e1b4b !important;
+}
+[data-baseweb="menu"] {
+  background: #0d0d1f !important;
+  border-radius: 0 !important;
+}
+[data-baseweb="menu"] ul {
+  background: #0d0d1f !important;
+}
+li[role="option"], [data-baseweb="option"] {
+  background: #0d0d1f !important;
+  color: #c7d2fe !important;
+  font-family: 'Courier New', monospace !important;
+  font-size: 13px !important;
+  border-bottom: 1px solid #1f2937 !important;
+  padding: 10px 14px !important;
+}
+li[role="option"]:hover, [data-baseweb="option"]:hover,
+li[role="option"][aria-selected="true"] {
+  background: #1e1b4b !important;
+  color: #a5b4fc !important;
+}
+/* Selectbox selected value text */
+[data-baseweb="select"] > div {
+  background: #0d0d1f !important;
+  border: 2px solid #374151 !important;
+  border-radius: 0 !important;
+  color: #e2e8f0 !important;
+  font-family: 'Courier New', monospace !important;
+}
+[data-baseweb="select"] span {
+  color: #e2e8f0 !important;
+  font-family: 'Courier New', monospace !important;
+}
+/* Scrollbar inside dropdown */
+[data-baseweb="menu"] *::-webkit-scrollbar { width: 6px !important; }
+[data-baseweb="menu"] *::-webkit-scrollbar-track { background: #0d0d1f !important; }
+[data-baseweb="menu"] *::-webkit-scrollbar-thumb { background: #374151 !important; border-radius: 0 !important; }
+
+/* ── Link buttons (st.link_button) — gold Annual Pass style ── */
+[data-testid="stLinkButton"] a {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 8px !important;
+  background: linear-gradient(135deg, #92400e 0%, #78350f 100%) !important;
+  border: 3px solid #f59e0b !important;
+  border-radius: 0 !important;
+  color: #fef3c7 !important;
+  box-shadow: 4px 4px 0 #451a03, 0 0 12px rgba(245,158,11,.25) !important;
+  text-decoration: none !important;
+  transition: transform .08s, box-shadow .08s !important;
+  letter-spacing: .5px;
+  display: block;
+  padding: 10px 16px !important;
+  text-align: center;
+  animation: pass-glow 2.4s ease-in-out infinite;
+}
+[data-testid="stLinkButton"] a:hover {
+  transform: translate(2px,2px) !important;
+  box-shadow: 2px 2px 0 #451a03, 0 0 18px rgba(245,158,11,.4) !important;
+  color: #fff !important;
+}
+@keyframes pass-glow {
+  0%,100% { box-shadow: 4px 4px 0 #451a03, 0 0 8px rgba(245,158,11,.2); }
+  50%      { box-shadow: 4px 4px 0 #451a03, 0 0 18px rgba(245,158,11,.5); }
+}
+
+/* ── Progress bar ── */
+[data-testid="stProgressBar"] > div {
+  background: #1f2937 !important;
+  border-radius: 0 !important;
+  border: 1px solid #374151 !important;
+}
+[data-testid="stProgressBar"] > div > div {
+  background: linear-gradient(90deg, #4f46e5, #818cf8) !important;
+  border-radius: 0 !important;
+}
+
+/* ── Warning/info boxes ── */
+[data-testid="stAlert"] {
+  border-radius: 0 !important;
+  border-left: 4px solid #f59e0b !important;
+  background: #1a1200 !important;
+  font-family: 'Courier New', monospace !important;
+}
+
+/* ── Containers with border ── */
+[data-testid="stVerticalBlockBorderWrapper"] > div {
+  border-radius: 0 !important;
+  border: 2px solid #1f2937 !important;
+  background: #0a0a18 !important;
+}
+
+/* ── RPG dialog animation ── */
+@keyframes blink-cursor {
+  0%,49%{opacity:1} 50%,100%{opacity:0}
+}
+@keyframes float-up {
+  0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)}
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # ════════════════════════════════════════════════════════
 # CONSTANTS & COURSE DATA
@@ -288,6 +585,7 @@ T = {
         "uoc_label":        "剩余学分",
         "completed_label":  "已修课程",
         "completed_ph":     "搜索已修课程（可多选）",
+        "custom_completed_ph": "课程代码不在列表里？手动填写，英文逗号分隔，例如：COMM5007, MGMT6001",
         "load_label":       "每学期课程数",
         "load_options":     ["2门", "3门", "4门"],
         "notes_label":      "其他备注（选填）",
@@ -319,18 +617,13 @@ T = {
         "gf_clarify_robustness": "💡 补充 WAM 或备注（比如时间偏好）可以让建议更精准哦，不填也没关系！",
 
         # Paywall
-        "paywall_title": "🔓 解锁深度选课咨询",
-        "paywall_used":  "你已使用 {n} 次免费建议",
-        "paywall_body":  """**免费版**已经很强大，但 Pro 版还有更多：
-
-✅ **职业路径模拟** — 看不同选课方案对应什么工作  
-✅ **WAM 提升策略** — AI 分析哪些课最容易拿高分  
-✅ **论文研究方向** — 为读博/做研究定制的选课路径  
-✅ **无限次数** — 随时改变方向，反复测试方案""",
-        "paywall_btn":   "🚀 升级 Pro — $9.9/月",
-        "paywall_url":   "https://buy.stripe.com/placeholder",  # replace with real Stripe link
+        "paywall_title": "免费次数已用完",
+        "paywall_used":  "",
+        "paywall_body":  "Annual Pass 解锁整学年无限次生成 — 🧋 一杯奶茶的价格，A$7.99。",
+        "paywall_btn":   "🔓 解锁 Annual Pass — A$7.99/年",
+        "paywall_url":   "https://buy.stripe.com/eVq3cw2ej4Iw8dNaLy9oc00",
         "free_remaining": "剩余免费次数：{n}/{total}",
-        "pro_badge":      "✅ Pro 用户",
+        "pro_badge":      "✅ Annual Pass 用户",
 
         # AI instructions
         "ai_lang":       "Chinese",
@@ -345,6 +638,18 @@ T = {
         # Footer
         "footer": "数据来源：UNSW Handbook（公开信息）· 仅供参考，非官方学术建议",
         "feedback_btn": "📝 提交反馈",
+        # Micro-feedback
+        "fb_prompt":     "这次推荐对你有帮助吗？",
+        "fb_sub":        "你的反馈会让下一个同学的结果更准 🙌",
+        "fb_bad":        "😕 不太准",
+        "fb_ok":         "😊 还不错",
+        "fb_great":      "🤩 正是我要的",
+        "fb_thanks_bad": "收到！帮我们说说哪里没对上？",
+        "fb_thanks_ok":  "谢谢～有什么可以更好的吗？",
+        "fb_thanks_great":"太好了！是什么让你觉得准？",
+        "fb_comment_ph": "随便说说，不用很正式（可跳过）",
+        "fb_submit":     "发送反馈",
+        "fb_done":       "✓ 已收到，感谢你的反馈！对我们很有帮助 💪",
     },
     "English": {
         "title":   "🎓 UNSW MCom Smart Course Advisor",
@@ -370,6 +675,7 @@ T = {
         "uoc_label":        "Remaining UOC",
         "completed_label":  "Completed Courses",
         "completed_ph":     "Search completed courses (multi-select)",
+        "custom_completed_ph": "Course not in list? Type codes separated by commas, e.g. COMM5007, MGMT6001",
         "load_label":       "Courses per term",
         "load_options":     ["2 courses", "3 courses", "4 courses"],
         "notes_label":      "Additional notes (optional)",
@@ -397,18 +703,13 @@ T = {
         "gf_clarify_ordering":  "💡 Heads up: your remaining UOC and completed course count seem inconsistent — worth double-checking. AI will still generate suggestions!",
         "gf_clarify_robustness": "💡 Adding your WAM or notes (e.g. scheduling preferences) helps the AI give more precise advice — but it's optional!",
 
-        "paywall_title": "🔓 Unlock Deep Advising",
-        "paywall_used":  "You have used {n} free recommendations",
-        "paywall_body":  """**Free tier** is already powerful. Upgrade for more:
-
-✅ **Career path simulation** — see which jobs each course path leads to  
-✅ **WAM improvement strategy** — AI finds the best courses for your GPA  
-✅ **Research & PhD track** — custom plan if you're aiming for academia  
-✅ **Unlimited generations** — change your mind, test new paths anytime""",
-        "paywall_btn":   "🚀 Upgrade to Pro — A$9.9/month",
-        "paywall_url":   "https://buy.stripe.com/placeholder",
+        "paywall_title": "You've used all 3 free tries",
+        "paywall_used":  "",
+        "paywall_body":  "Annual Pass = unlimited picks for the whole year — 🧋 one bubble tea, A$7.99.",
+        "paywall_btn":   "🔓 Unlock Annual Pass — A$7.99/year",
+        "paywall_url":   "https://buy.stripe.com/eVq3cw2ej4Iw8dNaLy9oc00",
         "free_remaining": "Free uses left: {n}/{total}",
-        "pro_badge":      "✅ Pro User",
+        "pro_badge":      "✅ Annual Pass",
 
         "ai_lang":       "English",
         "summary_field": "one-sentence overall recommendation (English)",
@@ -421,6 +722,18 @@ T = {
 
         "footer": "Data: UNSW Handbook (public info) · For reference only — not official academic advice.",
         "feedback_btn": "📝 Give Feedback",
+        # Micro-feedback
+        "fb_prompt":     "Were these recommendations helpful?",
+        "fb_sub":        "Your feedback helps the next student get better results 🙌",
+        "fb_bad":        "😕 Off-target",
+        "fb_ok":         "😊 Pretty good",
+        "fb_great":      "🤩 Exactly right",
+        "fb_thanks_bad": "Got it — what didn't fit?",
+        "fb_thanks_ok":  "Thanks! What could be better?",
+        "fb_thanks_great":"Love it! What made it feel right?",
+        "fb_comment_ph": "Anything helps — no need to be formal (optional)",
+        "fb_submit":     "Send feedback",
+        "fb_done":       "✓ Received, thank you! This really helps us improve 💪",
     },
 }
 
@@ -432,6 +745,221 @@ if "gen_count" not in st.session_state:
     st.session_state.gen_count = 0
 if "is_pro" not in st.session_state:
     st.session_state.is_pro = False
+
+# ── Demo scenario state ───────────────────────────────────
+# ── Pixel art: result characters (8 archetypes) ──────────
+
+# No-cap grid (casual / hoodie characters)
+_CHAR_GRID_NOCAP = [
+    #0  1  2  3  4  5  6  7  8  9
+    [0, 0, 0, 5, 5, 5, 5, 0, 0, 0],  # 0 hair top
+    [0, 0, 5, 5, 5, 5, 5, 5, 0, 0],  # 1 hair wider
+    [0, 0, 5, 5, 5, 5, 5, 5, 0, 0],  # 2 hair fuller
+    [0, 0, 0, 5, 5, 5, 5, 0, 0, 0],  # 3 hair base
+    [0, 0, 2, 2, 2, 2, 2, 0, 0, 0],  # 4 face top
+    [0, 0, 2, 1, 2, 1, 2, 0, 0, 0],  # 5 eyes
+    [0, 0, 2, 2, 2, 2, 2, 0, 0, 0],  # 6 face mid
+    [0, 0, 2, 0, 1, 1, 2, 0, 0, 0],  # 7 smile
+    [0, 0, 0, 2, 2, 2, 0, 0, 0, 0],  # 8 chin
+    [0, 0, 3, 3, 6, 3, 3, 0, 0, 0],  # 9 collar
+    [0, 3, 3, 3, 3, 3, 3, 3, 0, 0],  # 10 body
+    [1, 0, 3, 3, 3, 3, 3, 0, 1, 0],  # 11 arms
+    [0, 0, 0, 3, 0, 3, 0, 0, 0, 0],  # 12 legs
+    [0, 0, 0, 1, 0, 1, 0, 0, 0, 0],  # 13 shoes
+]
+
+# Cap grid (same as advisor — formal students)
+_CHAR_GRID_CAP = [
+    [0, 0, 1, 4, 4, 4, 1, 0, 0, 0],
+    [0, 1, 1, 4, 4, 4, 1, 1, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 5, 5, 5, 5, 0, 0, 0],
+    [0, 0, 2, 2, 2, 2, 2, 0, 0, 0],
+    [0, 0, 2, 1, 2, 1, 2, 0, 0, 0],
+    [0, 0, 2, 2, 2, 2, 2, 0, 0, 0],
+    [0, 0, 2, 0, 1, 1, 2, 0, 0, 0],
+    [0, 0, 0, 2, 2, 2, 0, 0, 0, 0],
+    [0, 0, 3, 3, 6, 3, 3, 0, 0, 0],
+    [0, 3, 3, 3, 3, 3, 3, 3, 0, 0],
+    [1, 0, 3, 3, 3, 3, 3, 0, 1, 0],
+    [0, 0, 0, 3, 0, 3, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+]
+
+# 8 student archetypes: {name_zh, name_en, flavor_zh, flavor_en, colors, cap}
+_PIXEL_CHARS = [
+    {"name_zh": "🎓 学霸控",  "name_en": "🎓 Academic",
+     "flavor_zh": "GPA 是我的命",     "flavor_en": "Lives for the GPA",
+     "colors": {1:'#1a1a1a',2:'#FFCC88',3:'#4472C4',4:'#FFD700',5:'#8B6914',6:'#fff',7:'#CC3300'},
+     "cap": True},
+    {"name_zh": "💼 金融狗",  "name_en": "💼 Finance Bro",
+     "flavor_zh": "投行梦想家",        "flavor_en": "IB or bust",
+     "colors": {1:'#1a1a1a',2:'#FFCC88',3:'#1a3a5c',4:'#aaaaaa',5:'#e8c840',6:'#fff',7:'#cc2200'},
+     "cap": True},
+    {"name_zh": "🎨 市场人",  "name_en": "🎨 Marketing",
+     "flavor_zh": "创意无极限",        "flavor_en": "Vibes & strategy",
+     "colors": {1:'#1a1a1a',2:'#FFCC88',3:'#c44472',4:'#ff88cc',5:'#7722bb',6:'#fff',7:'#ff4488'},
+     "cap": False},
+    {"name_zh": "📊 会计精",  "name_en": "📊 Accounting",
+     "flavor_zh": "数字控制一切",      "flavor_en": "Spreadsheets = love",
+     "colors": {1:'#1a1a1a',2:'#FFCC88',3:'#2d6a2d',4:'#44aa44',5:'#1a0a00',6:'#fff',7:'#88cc44'},
+     "cap": True},
+    {"name_zh": "💻 科技宅",  "name_en": "💻 Tech Nerd",
+     "flavor_zh": "代码改变世界",      "flavor_en": "Code is everything",
+     "colors": {1:'#1a1a1a',2:'#FFCC88',3:'#3a3a5a',4:'#6666aa',5:'#111111',6:'#8888bb',7:'#4488ff'},
+     "cap": False},
+    {"name_zh": "☕ 卷王",   "name_en": "☕ Night Owl",
+     "flavor_zh": "图书馆最后一盏灯",  "flavor_en": "Last one out of the library",
+     "colors": {1:'#1a1a1a',2:'#FFCC88',3:'#2a1a2a',4:'#553355',5:'#bb2200',6:'#887788',7:'#ff6600'},
+     "cap": False},
+    {"name_zh": "🌏 留子",   "name_en": "🌏 Int'l Student",
+     "flavor_zh": "跨越半个地球来卷",  "flavor_en": "Flew halfway round the world",
+     "colors": {1:'#1a1a1a',2:'#f0b888',3:'#cc6600',4:'#ff9900',5:'#110500',6:'#fff',7:'#ff3300'},
+     "cap": True},
+    {"name_zh": "🔬 研究生",  "name_en": "🔬 Researcher",
+     "flavor_zh": "PhD 是终点",        "flavor_en": "Eyeing a PhD",
+     "colors": {1:'#1a1a1a',2:'#FFCC88',3:'#dde8ee',4:'#aabbcc',5:'#222244',6:'#fff',7:'#4466cc'},
+     "cap": False},
+]
+
+def _render_result_char(seed: int, cn: bool) -> str:
+    import base64, random as _rnd
+    char = _rnd.Random(seed).choice(_PIXEL_CHARS)
+    grid = _CHAR_GRID_CAP if char["cap"] else _CHAR_GRID_NOCAP
+    colors = char["colors"]
+    cell = 9
+    W, H = 10 * cell, len(grid) * cell
+    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" shape-rendering="crispEdges">']
+    for r, row in enumerate(grid):
+        for c, idx in enumerate(row):
+            if idx == 0: continue
+            parts.append(f'<rect x="{c*cell}" y="{r*cell}" width="{cell}" height="{cell}" fill="{colors[idx]}"/>')
+    parts.append('</svg>')
+    b64 = base64.b64encode(''.join(parts).encode()).decode()
+    name   = char["name_zh"]   if cn else char["name_en"]
+    flavor = char["flavor_zh"] if cn else char["flavor_en"]
+    label  = "你本次召唤的角色" if cn else "Your character this run"
+    return (
+        f"<div style='display:inline-flex;align-items:center;gap:14px;"
+        f"background:#0a0a18;border:2px solid #1f2937;padding:10px 16px;"
+        f"margin:10px 0 14px 0'>"
+        f"<img src='data:image/svg+xml;base64,{b64}' width='72' "
+        f"style='image-rendering:pixelated;display:block'>"
+        f"<div>"
+        f"<div style='font-family:\"Press Start 2P\",monospace;font-size:6px;"
+        f"color:#4b5563;margin-bottom:5px;letter-spacing:.5px'>{label}</div>"
+        f"<div style='font-family:\"Press Start 2P\",monospace;font-size:10px;"
+        f"color:#a5b4fc;margin-bottom:4px'>{name}</div>"
+        f"<div style='font-family:\"Courier New\",monospace;font-size:11px;"
+        f"color:#6b7280'>{flavor}</div>"
+        f"</div></div>"
+    )
+
+# ── Pixel art advisor character (SVG) ────────────────────
+_PIXEL_COLORS = {
+    1: '#1a1a1a',   # outline / dark
+    2: '#FFCC88',   # skin
+    3: '#4472C4',   # blue outfit
+    4: '#FFD700',   # gold (cap)
+    5: '#8B6914',   # brown hair
+    6: '#ffffff',   # white
+    7: '#CC3300',   # red accent
+}
+
+_PIXEL_GRID = [
+    #0  1  2  3  4  5  6  7  8  9
+    [0, 0, 1, 4, 4, 4, 1, 0, 0, 0],  # 0  cap crown
+    [0, 1, 1, 4, 4, 4, 1, 1, 0, 0],  # 1  cap wider
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],  # 2  cap brim
+    [0, 0, 0, 5, 5, 5, 5, 0, 0, 0],  # 3  hair
+    [0, 0, 2, 2, 2, 2, 2, 0, 0, 0],  # 4  face top
+    [0, 0, 2, 1, 2, 1, 2, 0, 0, 0],  # 5  eyes
+    [0, 0, 2, 2, 2, 2, 2, 0, 0, 0],  # 6  face mid
+    [0, 0, 2, 0, 1, 1, 2, 0, 0, 0],  # 7  smile
+    [0, 0, 0, 2, 2, 2, 0, 0, 0, 0],  # 8  chin
+    [0, 0, 3, 3, 6, 3, 3, 0, 0, 0],  # 9  collar (6=white shirt)
+    [0, 3, 3, 3, 3, 3, 3, 3, 0, 0],  # 10 body
+    [1, 0, 3, 3, 3, 3, 3, 0, 1, 0],  # 11 arms
+    [0, 0, 0, 3, 0, 3, 0, 0, 0, 0],  # 12 legs
+    [0, 0, 0, 1, 0, 1, 0, 0, 0, 0],  # 13 shoes
+]
+
+def _pixel_advisor_svg(cell: int = 10) -> str:
+    W = 10 * cell
+    H = len(_PIXEL_GRID) * cell
+    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
+             f'shape-rendering="crispEdges">']
+    for r, row in enumerate(_PIXEL_GRID):
+        for c, idx in enumerate(row):
+            if idx == 0:
+                continue
+            x, y = c * cell, r * cell
+            fill = _PIXEL_COLORS[idx]
+            parts.append(f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" fill="{fill}"/>')
+    parts.append('</svg>')
+    return ''.join(parts)
+
+def _pixel_advisor_html(size: int = 80) -> str:
+    import base64
+    svg_bytes = _pixel_advisor_svg(cell=10).encode()
+    b64 = base64.b64encode(svg_bytes).decode()
+    return (f'<img src="data:image/svg+xml;base64,{b64}" '
+            f'width="{size}" style="image-rendering:pixelated;display:block">')
+
+DEMO_SCENARIOS = {
+    "A": {
+        "label_zh": "😱 啥都没填",
+        "label_en": "😱 Blank profile",
+        "desc_zh":  "连你想学啥都不知道，我只能乱猜——看看没有信息时AI会推出什么离谱答案",
+        "desc_en":  "You told me nothing. Watch me confidently recommend the wrong courses.",
+        "verdict_zh": "🚫 我罢工了",
+        "verdict_en": "🚫 I quit",
+        "goals":       [],
+        "specs":       [],
+        "wam":         "",
+        "credits":     "48 UOC",
+        "completed":   [],
+        "notes":       "",
+    },
+    "B": {
+        "label_zh": "🤔 填了一半",
+        "label_en": "🤔 Half done",
+        "desc_zh":  "知道你想进科技行业了，但WAM是多少？修了啥课？我尽力，但别怪我不准",
+        "desc_en":  "I know your goal but not much else. I'll try, but don't blame me.",
+        "verdict_zh": "⚠️ 勉强能用",
+        "verdict_en": "⚠️ Proceed with caution",
+        "goals":       ["Tech industry jobs"],
+        "specs":       ["Information Systems"],
+        "wam":         "",
+        "credits":     "48 UOC",
+        "completed":   [],
+        "notes":       "",
+    },
+    "C": {
+        "label_zh": "🎉 信息给满了",
+        "label_en": "🎉 Full profile",
+        "desc_zh":  "完美！我知道你是谁、想去哪、还差几个学分——这才是我发挥的时候！",
+        "desc_en":  "Now we're talking. I know everything I need. Watch the magic happen.",
+        "verdict_zh": "✅ 这才对嘛",
+        "verdict_en": "✅ This is the way",
+        "goals":       ["Tech industry jobs", "Continue to PhD"],
+        "specs":       ["Information Systems"],
+        "wam":         "78",
+        "credits":     "48 UOC",
+        "completed":   ["COMM5007"],
+        "notes":       "Interested in AI and data analytics, prefer courses with coding components",
+    },
+}
+
+def _load_demo(scenario_key: str):
+    s = DEMO_SCENARIOS[scenario_key]
+    st.session_state["demo_goals"]     = s["goals"]
+    st.session_state["demo_specs"]     = s["specs"]
+    st.session_state["demo_wam"]       = s["wam"]
+    st.session_state["demo_credits"]   = ["96 UOC", "72 UOC", "48 UOC", "36 UOC", "24 UOC", "12 UOC"].index(s["credits"])
+    st.session_state["demo_completed"] = s["completed"]
+    st.session_state["demo_notes"]     = s["notes"]
+    st.session_state["active_demo"]    = scenario_key
 
 # ════════════════════════════════════════════════════════
 # HEADER + LANGUAGE TOGGLE
@@ -452,14 +980,29 @@ with st.sidebar:
         remaining = max(0, FREE_LIMIT - st.session_state.gen_count)
         st.info(t["free_remaining"].format(n=remaining, total=FREE_LIMIT))
         st.progress(st.session_state.gen_count / FREE_LIMIT)
-        st.markdown("---")
-        st.markdown("**Pro 解锁：**" if lang == "中文" else "**Pro unlocks:**")
-        st.markdown("🔒 职业路径模拟" if lang == "中文" else "🔒 Career path simulation")
-        st.markdown("🔒 WAM 提升策略" if lang == "中文" else "🔒 WAM improvement strategy")
-        st.markdown("🔒 论文研究路径" if lang == "中文" else "🔒 Research / PhD track")
-        st.markdown("🔒 无限次数" if lang == "中文" else "🔒 Unlimited uses")
+        st.markdown(
+            "<div style='"
+            "border:2px solid #92400e;"
+            "background:linear-gradient(135deg,#0d0a00,#1a1200);"
+            "padding:10px 12px;"
+            "margin:8px 0 6px 0;"
+            "box-shadow:3px 3px 0 #451a03;"
+            "'>"
+            "<div style='font-family:\"Press Start 2P\",monospace;font-size:7px;"
+            "color:#f59e0b;margin-bottom:6px;letter-spacing:.5px'>✦ ANNUAL PASS</div>"
+            "<div style='font-family:\"Courier New\",monospace;font-size:11px;"
+            "color:#e5e7eb;line-height:1.8'>"
+            + ("无限次生成 · 整学年有效" if lang == "中文" else "Unlimited · Valid all year") +
+            "</div>"
+            "<div style='font-family:\"Courier New\",monospace;font-size:10px;"
+            "color:#d97706;margin-top:4px'>"
+            + ("🧋 一杯奶茶的价格 — A$7.99" if lang == "中文" else "🧋 One bubble tea — A$7.99") +
+            "</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
         st.link_button(
-            t["paywall_btn"],
+            "🔓 " + ("立即解锁" if lang == "中文" else "Unlock now") + " →",
             t["paywall_url"],
             use_container_width=True,
         )
@@ -484,12 +1027,186 @@ def step_bar(active: int):
     st.markdown("<hr style='margin:8px 0 20px 0'>", unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════
+# DEMO MODE BANNER
+# ════════════════════════════════════════════════════════
+
+# Init demo state defaults
+for _k, _v in [("demo_goals",[]), ("demo_specs",[]), ("demo_wam",""),
+               ("demo_credits",2), ("demo_completed",[]), ("demo_notes",""),
+               ("active_demo", None)]:
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+# ── Session tracking for Memory Layer research ────────────────────
+import uuid as _uuid
+if "session_id" not in st.session_state:
+    st.session_state["session_id"]    = str(_uuid.uuid4())[:8]
+if "submit_count" not in st.session_state:
+    st.session_state["submit_count"]  = 0
+# Accumulate OK dimensions across submissions in this session
+# Structure: {"relevance": True/False, "coverage": ..., "ordering": ..., "robustness": ...}
+if "session_ok_dims" not in st.session_state:
+    st.session_state["session_ok_dims"] = {
+        "relevance": False, "coverage": False,
+        "ordering": False,  "robustness": False,
+    }
+
+cn = (lang == "中文")
+
+def _render_advisor_panel(goals, specs, wam, notes, lang):
+    """Dynamic RPG-style advisor dialog reacting to current form state."""
+    cn = (lang == "中文")
+    goals_ok  = bool(goals)
+    specs_ok  = bool(specs)
+    wam_ok    = bool(wam and wam.strip())
+    notes_ok  = bool(notes and notes.strip())
+
+    completeness = sum([goals_ok, specs_ok, wam_ok, notes_ok])
+
+    # ── Advisor state based on what's filled ──────────────
+    if not goals_ok and not specs_ok:
+        face_eyes = "◉  ◉"
+        face_mouth = "  ___  "
+        border = "#374151"
+        bar_color = "#ef4444"
+        bar_pct   = 5
+        if cn:
+            dialog_lines = [
+                "哦？新同学来了。",
+                "想让我帮你选课？",
+                "先告诉我你想往哪个方向卷～",
+            ]
+            hint = "↓ 先选一个毕业目标"
+        else:
+            dialog_lines = ["New student, huh?","Tell me what you're chasing —","grades, jobs, or vibes?"]
+            hint = "↓ Start by picking a goal"
+    elif goals_ok and not specs_ok:
+        face_eyes = "^  ^"
+        face_mouth = "  ▽  "
+        border = "#f59e0b"
+        bar_color = "#f59e0b"
+        bar_pct   = 35
+        if cn:
+            dialog_lines = [
+                "目标收到，有想法！",
+                "你具体在哪个方向？",
+                "Finance 和 Marketing 差很多的。",
+            ]
+            hint = "↓ 选择你的专业方向"
+        else:
+            dialog_lines = ["Nice goals!","Which specialisation are you in?","Finance ≠ Marketing, big difference."]
+            hint = "↓ Pick your specialisation above"
+    elif goals_ok and specs_ok and not wam_ok:
+        face_eyes = "◕  ◕"
+        face_mouth = "  ∪  "
+        border = "#818cf8"
+        bar_color = "#818cf8"
+        bar_pct   = 65
+        if cn:
+            dialog_lines = [
+                "来了来了，越来越清晰了！",
+                "WAM 多少？不用不好意思，",
+                "我帮你选最值得冲的课。",
+            ]
+            hint = "↓ 填写 WAM（可选但有用）"
+        else:
+            dialog_lines = ["Getting clearer!","What's your WAM? No judgment —","I'll find the right difficulty for you."]
+            hint = "↓ Enter WAM above (optional but useful)"
+    else:
+        face_eyes = "★  ★"
+        face_mouth = "  ◡  "
+        border = "#22c55e"
+        bar_color = "#22c55e"
+        bar_pct   = 100
+        if cn:
+            dialog_lines = [
+                "信息齐了，可以出手了！",
+                "点下面那个按钮，",
+                "我给你整一套最合适的课表。",
+            ]
+            hint = "↓ 生成选课建议！"
+        else:
+            dialog_lines = ["All set, let's go!","Hit the button below —","I'll build your course lineup."]
+            hint = "↓ Generate recommendations!"
+
+    # ── Build pixel face (inline SVG, same art, different expression) ──
+    face_svg = _pixel_advisor_html(size=72)
+
+    # ── Status bar (4 tiles) ──
+    dims = (
+        [("目标","goals_ok"), ("方向","specs_ok"), ("WAM","wam_ok"), ("备注","notes_ok")]
+        if cn else
+        [("Goals","goals_ok"), ("Track","specs_ok"), ("WAM","wam_ok"), ("Notes","notes_ok")]
+    )
+    dim_vals = [goals_ok, specs_ok, wam_ok, notes_ok]
+    tiles_html = ""
+    for (label, _), filled in zip(dims, dim_vals):
+        bg  = "#22c55e" if filled else "#1f2937"
+        col = "#fff"    if filled else "#4b5563"
+        icon = "■" if filled else "□"
+        tiles_html += (
+            f"<div style='display:inline-block;text-align:center;margin:0 4px;"
+            f"background:{bg};border:2px solid {'#16a34a' if filled else '#374151'};"
+            f"padding:3px 7px;font-family:\"Courier New\",monospace;font-size:10px;color:{col}'>"
+            f"{icon} {label}</div>"
+        )
+
+    # ── Dialog text ──
+    dialog_html = "".join(
+        f"<div style='margin-bottom:6px'>{line}</div>" for line in dialog_lines
+    )
+
+    # ── Full panel HTML ──
+    html = f"""
+<div style="
+  display:flex; gap:16px; align-items:flex-start;
+  background:#0d0d1f;
+  border:3px solid {border};
+  box-shadow: 4px 4px 0 {border};
+  padding:16px 18px; margin:16px 0;
+">
+  <div style="flex-shrink:0;text-align:center">
+    <div style="animation:float-up 2s ease-in-out infinite">{face_svg}</div>
+    <div style="font-family:'Press Start 2P',monospace;font-size:7px;
+                color:{border};margin-top:6px;letter-spacing:1px">ADVISOR</div>
+  </div>
+  <div style="flex:1">
+    <div style="
+      font-family:'Press Start 2P',monospace;
+      font-size:9px; color:#e2e8f0;
+      line-height:2; margin-bottom:10px;
+      border-bottom:1px solid #1f2937; padding-bottom:10px;
+    ">
+      {dialog_html}
+      <span style="color:{border};animation:blink-cursor 1s infinite;
+                   display:inline-block">▶</span>
+    </div>
+    <div style="margin-bottom:10px">{tiles_html}</div>
+    <div style="margin-bottom:8px">
+      <div style="font-family:'Courier New',monospace;font-size:10px;
+                  color:#6b7280;margin-bottom:4px">
+        {'信息完整度' if cn else 'Profile Power'} {bar_pct}%
+      </div>
+      <div style="height:10px;background:#1f2937;border:2px solid #374151;position:relative">
+        <div style="height:100%;width:{bar_pct}%;background:{bar_color};
+                    transition:width .5s"></div>
+      </div>
+    </div>
+    <div style="font-family:'Press Start 2P',monospace;font-size:8px;
+                color:{border};letter-spacing:.5px">{hint}</div>
+  </div>
+</div>
+"""
+    st.markdown(html, unsafe_allow_html=True)
+
+# ════════════════════════════════════════════════════════
 # STEP 1 — GOALS (Coverage dimension: CRITICAL)
 # ════════════════════════════════════════════════════════
 
 st.subheader(t["sec_goals"])
 
-selected_goals = st.multiselect(t["goals_label"], t["goals_options"])
+selected_goals = st.multiselect(t["goals_label"], t["goals_options"],
+                               default=st.session_state["demo_goals"])
 custom_goal    = st.text_input(t["custom_goal_label"], placeholder=t["custom_goal_ph"])
 
 all_goals = selected_goals + ([custom_goal.strip()] if custom_goal.strip() else [])
@@ -510,16 +1227,40 @@ if all_goals:
                 key=f"w_{g}", label_visibility="collapsed",
             )
 
-    fig = px.pie(
-        names=list(goal_weights.keys()),
-        values=list(goal_weights.values()),
-        hole=0.4,
-        color_discrete_sequence=px.colors.qualitative.Set3,
+    # ── Pixel bar chart (replaces Plotly pie) ──
+    _PIXEL_PALETTE = [
+        "#818cf8","#34d399","#f59e0b","#f87171",
+        "#a78bfa","#38bdf8","#fb923c","#4ade80",
+    ]
+    total_w = sum(goal_weights.values()) or 1
+    rows_html = ""
+    for i, (name, w) in enumerate(goal_weights.items()):
+        pct   = round(w / total_w * 100)
+        color = _PIXEL_PALETTE[i % len(_PIXEL_PALETTE)]
+        label = name if len(name) <= 22 else name[:20] + "…"
+        rows_html += f"""
+<div style="margin:6px 0">
+  <div style="font-family:'Courier New',monospace;font-size:11px;
+              color:#cbd5e1;margin-bottom:3px;letter-spacing:.3px">
+    <span style="color:{color};margin-right:6px">■</span>{label}
+    <span style="float:right;color:{color};font-weight:700">{pct}%</span>
+  </div>
+  <div style="height:14px;background:#1f2937;border:2px solid #374151;
+              image-rendering:pixelated;position:relative">
+    <div style="height:100%;width:{pct}%;background:{color};
+                image-rendering:pixelated;transition:width .4s"></div>
+  </div>
+</div>"""
+    st.markdown(
+        f"""<div style="background:#0d0d1f;border:3px solid #1f2937;
+                        box-shadow:4px 4px 0 #1e1b4b;padding:14px 16px;
+                        margin:8px 0;font-family:'Press Start 2P',monospace">
+  <div style="font-size:7px;color:#4b5563;letter-spacing:1px;
+              margin-bottom:10px">GOAL WEIGHTS</div>
+  {rows_html}
+</div>""",
+        unsafe_allow_html=True,
     )
-    fig.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=250,
-                      showlegend=True, legend=dict(font=dict(size=10)))
-    fig.update_traces(textposition="inside", textinfo="percent+label")
-    st.plotly_chart(fig, use_container_width=True)
 
 # ════════════════════════════════════════════════════════
 # STEP 2 — PROFILE (Relevance + Ordering + Robustness)
@@ -531,6 +1272,7 @@ st.subheader(t["sec_profile"])
 c1, c2 = st.columns(2)
 with c1:
     specs = st.multiselect(t["spec_label"], list(COURSES.keys()),
+                           default=st.session_state["demo_specs"],
                            max_selections=2, placeholder=t["spec_ph"])
 with c2:
     term  = st.selectbox(t["term_label"],
@@ -538,23 +1280,110 @@ with c2:
 
 c3, c4 = st.columns(2)
 with c3:
-    wam     = st.text_input(t["wam_label"], placeholder=t["wam_ph"])
+    wam     = st.text_input(t["wam_label"], placeholder=t["wam_ph"],
+                           value=st.session_state["demo_wam"])
 with c4:
     credits = st.selectbox(t["uoc_label"],
-                           ["96 UOC", "72 UOC", "48 UOC", "36 UOC", "24 UOC", "12 UOC"])
+                           ["96 UOC", "72 UOC", "48 UOC", "36 UOC", "24 UOC", "12 UOC"],
+                           index=st.session_state["demo_credits"])
 
 completed_courses = st.multiselect(
     t["completed_label"],
     options=ALL_COURSE_CODES,
+    default=st.session_state["demo_completed"],
     format_func=lambda code: f"{code} · {ALL_COURSES_DICT[code]['name']}",
     placeholder=t["completed_ph"],
 )
+custom_completed_raw = st.text_input(
+    label="　",
+    placeholder=t["custom_completed_ph"],
+    label_visibility="collapsed",
+)
+# Merge: dropdown selections + manual codes (uppercased, stripped)
+_custom_codes = [c.strip().upper() for c in custom_completed_raw.split(",") if c.strip()]
+completed_courses = list(dict.fromkeys(completed_courses + _custom_codes))
 
 c5, c6 = st.columns([1, 2])
 with c5:
     load = st.radio(t["load_label"], t["load_options"], index=1)
 with c6:
-    notes = st.text_input(t["notes_label"], placeholder=t["notes_ph"])
+    notes = st.text_input(t["notes_label"], placeholder=t["notes_ph"],
+                         value=st.session_state["demo_notes"])
+
+# ════════════════════════════════════════════════════════
+# SIDEBAR QUEST LOG — live info completeness tracker
+# ════════════════════════════════════════════════════════
+
+def _pixel_bar(pct: int, color: str, width: int = 10) -> str:
+    filled = round(pct / 100 * width)
+    blocks = "█" * filled + "░" * (width - filled)
+    return f"<span style='color:{color};font-family:\"Courier New\",monospace;font-size:11px;letter-spacing:1px'>{blocks}</span>"
+
+_goals_ok     = bool(all_goals)
+_specs_ok     = bool(specs)
+_wam_ok       = bool(wam.strip())
+_notes_ok     = bool(notes.strip())
+_completed_ok = bool(completed_courses)
+
+_quest_items = [
+    ("毕业目标" if cn else "Goals",       _goals_ok,     "#818cf8", 35),
+    ("专业方向" if cn else "Specialise",  _specs_ok,     "#34d399", 25),
+    ("当前WAM"  if cn else "WAM",         _wam_ok,       "#f59e0b", 20),
+    ("已修课程" if cn else "Completed",   _completed_ok, "#38bdf8", 10),
+    ("补充说明" if cn else "Extra notes", _notes_ok,     "#f87171", 10),
+]
+_total_weight = sum(w for *_, w in _quest_items)
+_earned       = sum(w for *_, filled, _, w in _quest_items if filled)
+_power_pct    = round(_earned / _total_weight * 100)
+_power_color  = "#ef4444" if _power_pct < 40 else ("#f59e0b" if _power_pct < 70 else "#22c55e")
+
+_rows = ""
+for label, filled, color, _ in _quest_items:
+    icon  = "▶" if filled else "▷"
+    state = ("<span style='color:#22c55e'>DONE</span>" if filled
+             else "<span style='color:#4b5563'>----</span>")
+    bar   = _pixel_bar(100 if filled else 0, color if filled else "#1f2937")
+    _rows += f"""
+<div style="margin:8px 0">
+  <div style="display:flex;justify-content:space-between;
+              font-family:'Press Start 2P',monospace;font-size:7px;
+              color:{'#e2e8f0' if filled else '#6b7280'};margin-bottom:3px">
+    <span style="color:{color if filled else '#4b5563'}">{icon}</span>
+    <span style="flex:1;margin-left:6px">{label}</span>
+    {state}
+  </div>
+  {bar}
+</div>"""
+
+with st.sidebar:
+    st.markdown(
+        f"""<div style="background:#0a0a18;border:3px solid #1f2937;
+                        box-shadow:3px 3px 0 #0d0d1f;padding:12px 14px;
+                        margin-top:12px">
+  <div style="font-family:'Press Start 2P',monospace;font-size:7px;
+              color:#4f46e5;letter-spacing:1px;margin-bottom:4px">QUEST LOG</div>
+  <div style="font-family:'Courier New',monospace;font-size:9px;
+              color:#374151;margin-bottom:10px;border-bottom:1px solid #1f2937;
+              padding-bottom:6px">{'越完整答案越精准' if cn else 'more info = better answer'}</div>
+  {_rows}
+  <div style="margin-top:12px;border-top:1px solid #1f2937;padding-top:10px">
+    <div style="font-family:'Press Start 2P',monospace;font-size:7px;
+                color:{_power_color};margin-bottom:5px">
+      INFO PWR &nbsp; {_power_pct}%
+    </div>
+    <div style="height:10px;background:#1f2937;border:2px solid #374151">
+      <div style="height:100%;width:{_power_pct}%;background:{_power_color};
+                  image-rendering:pixelated"></div>
+    </div>
+    <div style="font-family:'Courier New',monospace;font-size:9px;
+                color:#4b5563;margin-top:5px">
+      {'★★★☆☆' if _power_pct < 40 else ('★★★★☆' if _power_pct < 80 else '★★★★★')}
+      &nbsp;{'补充更多提升精度' if cn else 'fill more to improve'}
+    </div>
+  </div>
+</div>""",
+        unsafe_allow_html=True,
+    )
 
 # ════════════════════════════════════════════════════════
 # GATEFIX EXPERIMENT PANEL HELPER
@@ -572,102 +1401,81 @@ def _render_experiment_panel(gate, eligible_map, result_ungated, result_governed
     dec_label = {"PASS": "通过", "CLARIFY": "待确认", "REFUSE": "已拒绝"} if cn else \
                 {"PASS": "PASS", "CLARIFY": "CLARIFY", "REFUSE": "REFUSED"}
 
-    st.divider()
-    with st.expander(
-        "🛡️ GateFix 输入质量诊断" if cn else "🛡️ GateFix Input Quality Diagnostics",
-        expanded=True,
-    ):
-        # ── 4D-CQ status bar ──────────────────────────────────────────
-        # label, zh_ok, zh_fail, en_ok, en_fail, critical
-        dim_info = [
-            ("relevance",  "专业方向",   "✅ 已选择",  "🔴 未选择",  "Specialisation", "✅ Selected",  "🔴 Not selected",  True),
-            ("coverage",   "毕业目标",   "✅ 已填写",  "🔴 未填写",  "Goals",          "✅ Provided",  "🔴 Not provided",  True),
-            ("ordering",   "学分核对",   "✅ 正常",    "⚠️ 请检查",  "Credit check",   "✅ Consistent","⚠️ Please verify", False),
-            ("robustness", "补充信息",   "✅ 已填写",  "⚠️ 建议补充","Extra details",  "✅ Provided",  "⚠️ Optional",      False),
-        ]
-        cols4 = st.columns(4)
-        for col, (dim, zh_lbl, zh_ok, zh_fail, en_lbl, en_ok, en_fail, critical) in zip(cols4, dim_info):
-            ok    = (getattr(gate.cq, dim) == "OK")
-            label = zh_lbl if cn else en_lbl
-            val   = (zh_ok if ok else zh_fail) if cn else (en_ok if ok else en_fail)
-            col.metric(label=label, value=val)
+    # ── Build "what's missing" message ───────────────────────
+    dim_map = [
+        ("relevance",  "专业方向" if cn else "specialisation",  True),
+        ("coverage",   "毕业目标" if cn else "goals",           True),
+        ("ordering",   "学分信息" if cn else "credit info",     False),
+        ("robustness", "补充说明" if cn else "extra notes",     False),
+    ]
+    missing_critical = [lbl for dim, lbl, crit in dim_map
+                        if crit and getattr(gate.cq, dim) != "OK"]
+    missing_optional = [lbl for dim, lbl, crit in dim_map
+                        if not crit and getattr(gate.cq, dim) != "OK"]
 
-        dec_label_full = {
-            "PASS":    "✅ 已通过" if cn else "✅ Ready",
-            "CLARIFY": "⚠️ 建议补充信息" if cn else "⚠️ Proceeding with note",
-            "REFUSE":  "❌ 请完善必填项后重试" if cn else "❌ Please complete required fields",
-        }
-        st.markdown(
-            f"<div style='margin:10px 0 4px 0;font-size:13px;color:{dec_color};font-weight:600'>"
-            f"{dec_label_full[gate.decision]}"
-            f"</div>",
-            unsafe_allow_html=True,
+    if gate.decision == "REFUSE":
+        banner_icon = "❌"
+        banner_color = "#ef4444"
+        banner_bg    = "#1a0505"
+        banner_border = "#7f1d1d"
+        if cn:
+            banner_msg = f"缺少必填项：{'、'.join(missing_critical)}　→　请补充后重新提交"
+        else:
+            banner_msg = f"Missing required: {', '.join(missing_critical)} — please fill in and resubmit"
+    elif gate.decision == "CLARIFY":
+        banner_icon = "⚠️"
+        banner_color = "#f59e0b"
+        banner_bg    = "#1a1200"
+        banner_border = "#78350f"
+        parts = []
+        if missing_optional:
+            parts.append(("补充" if cn else "add") + "：" + ("、".join(missing_optional) if cn else ", ".join(missing_optional)))
+        if cn:
+            banner_msg = "已生成推荐，但" + "；".join(parts) + "能让结果更精准" if parts else "推荐已生成，结果供参考"
+        else:
+            banner_msg = ("Results generated, but " + "; ".join(parts) + " would improve accuracy") if parts else "Results generated for reference"
+    else:
+        banner_icon = "✅"
+        banner_color = "#22c55e"
+        banner_bg    = "#021a0a"
+        banner_border = "#14532d"
+        banner_msg = "信息完整，推荐结果已全面优化" if cn else "All info provided — recommendations fully optimised"
+
+    # ── Chip row: one tag per dimension ──────────────────────
+    chips_html = ""
+    for dim, lbl, crit in dim_map:
+        ok = getattr(gate.cq, dim) == "OK"
+        chip_bg  = "#14532d" if ok else ("#7f1d1d" if crit else "#1c1917")
+        chip_col = "#4ade80" if ok else ("#fca5a5" if crit else "#78716c")
+        chip_icon = "■" if ok else ("✕" if crit else "△")
+        chips_html += (
+            f"<span style='display:inline-block;font-family:\"Courier New\",monospace;"
+            f"font-size:11px;background:{chip_bg};color:{chip_col};"
+            f"border:1px solid {chip_col}33;padding:2px 8px;margin:0 4px 4px 0'>"
+            f"{chip_icon} {lbl}</span>"
         )
 
-        st.markdown("---")
+    st.divider()
+    st.markdown(
+        f"""<div style="background:{banner_bg};border:3px solid {banner_border};
+                        box-shadow:4px 4px 0 #0d0d1f;padding:14px 18px;margin:12px 0">
+  <div style="font-family:'Press Start 2P',monospace;font-size:9px;
+              color:{banner_color};margin-bottom:8px;letter-spacing:.5px">
+    {banner_icon} {banner_msg}
+  </div>
+  <div>{chips_html}</div>
+</div>""",
+        unsafe_allow_html=True,
+    )
 
-        # ── Side-by-side comparison ───────────────────────────────────
-        col_l, col_r = st.columns(2, gap="medium")
+    # Banner only — columns are handled by the caller
 
-        def _course_list(res):
-            items = []
-            for s in (res or {}).get("selections", [])[:4]:
-                code   = s.get("code", "")
-                course = eligible_map.get(code)
-                name   = course["name"] if course else code
-                items.append(f"<li style='margin:4px 0'><code>{code}</code> {name}</li>")
-            return "<ul style='padding-left:16px;margin:8px 0'>" + "".join(items) + "</ul>" if items else ""
 
-        with col_l:
-            st.markdown(
-                f"<div style='font-weight:600;margin-bottom:6px'>{'未治理' if cn else 'Without GateFix'}</div>",
-                unsafe_allow_html=True,
-            )
-            if result_ungated:
-                st.markdown(_course_list(result_ungated), unsafe_allow_html=True)
-                if result_ungated.get("summary"):
-                    st.caption(result_ungated["summary"])
-            else:
-                st.caption("—")
+# ════════════════════════════════════════════════════════
+# ADVISOR PANEL — live feedback on form completeness
+# ════════════════════════════════════════════════════════
 
-        with col_r:
-            st.markdown(
-                f"<div style='font-weight:600;color:{dec_color};margin-bottom:6px'>"
-                f"{'GateFix 治理后' if cn else 'With GateFix'}</div>",
-                unsafe_allow_html=True,
-            )
-            if gate.decision == "REFUSE":
-                st.markdown(
-                    f"<div style='color:#ef4444;font-size:13px'>"
-                    f"{'🚫 执行已阻断' if cn else '🚫 Execution blocked'}"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-            elif gate.decision == "CLARIFY":
-                if result_governed:
-                    st.markdown(_course_list(result_governed), unsafe_allow_html=True)
-                    if result_governed.get("summary"):
-                        st.caption(result_governed["summary"])
-                st.markdown(
-                    f"<div style='color:#f59e0b;font-size:12px;margin-top:6px'>"
-                    f"{'⚠️ 已标注质量提示' if cn else '⚠️ Quality flag annotated'}"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-            else:  # PASS
-                if result_governed:
-                    st.markdown(_course_list(result_governed), unsafe_allow_html=True)
-                    if result_governed.get("summary"):
-                        st.caption(result_governed["summary"])
-                st.markdown(
-                    f"<div style='color:#22c55e;font-size:12px;margin-top:6px'>"
-                    f"{'✅ 全部维度通过验证' if cn else '✅ All dimensions verified'}"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-
-        st.markdown("---")
-
+_render_advisor_panel(all_goals, specs, wam, notes, lang)
 
 # ════════════════════════════════════════════════════════
 # STEP 3 — SUBMIT + GATEFIX + AI GENERATION
@@ -689,6 +1497,21 @@ if submitted:
         notes=notes,
     )
 
+    # ── Memory Layer: compute counterfactual gate decision ────────────────────
+    # "If previously OK dims were inherited from session memory, what would the
+    #  gate decide?" — lets us measure CLARIFY→PASS lift in admin analytics.
+    _prev_ok = st.session_state["session_ok_dims"]
+    _cf_cq_r  = "OK" if (gate.cq.relevance  == "OK" or _prev_ok["relevance"])  else "DEFECT"
+    _cf_cq_c  = "OK" if (gate.cq.coverage   == "OK" or _prev_ok["coverage"])   else "DEFECT"
+    _cf_cq_o  = "OK" if (gate.cq.ordering   == "OK" or _prev_ok["ordering"])   else "DEFECT"
+    _cf_cq_ro = "OK" if (gate.cq.robustness == "OK" or _prev_ok["robustness"]) else "DEFECT"
+    if _cf_cq_r == "DEFECT" or _cf_cq_c == "DEFECT":
+        _cf_decision = "REFUSE"
+    elif _cf_cq_o == "DEFECT" or _cf_cq_ro == "DEFECT":
+        _cf_decision = "CLARIFY"
+    else:
+        _cf_decision = "PASS"
+
     profile_meta = {
         "n_specs":      len(specs),
         "n_goals":      len(all_goals),
@@ -698,6 +1521,10 @@ if submitted:
         "has_notes":    bool(notes.strip()),
         "load":         load,
         "lang":         lang,
+        # Memory Layer fields
+        "session_id":              st.session_state["session_id"],
+        "submit_count":            st.session_state["submit_count"],
+        "counterfactual_decision": _cf_decision,
     }
 
     # ── Build eligible course pool (needed for all paths incl. REFUSE) ──
@@ -757,35 +1584,40 @@ Respond ONLY with valid JSON (no markdown):
         st.error(f"API key error: {_e}")
         st.stop()
 
-    # ── REFUSE: block main AI, show guidance + experiment panel ──
+    # ── Memory Layer: update session OK dims (regardless of decision) ────────
+    def _update_session_memory(g):
+        ok = st.session_state["session_ok_dims"]
+        if g.cq.relevance  == "OK": ok["relevance"]  = True
+        if g.cq.coverage   == "OK": ok["coverage"]   = True
+        if g.cq.ordering   == "OK": ok["ordering"]   = True
+        if g.cq.robustness == "OK": ok["robustness"] = True
+        st.session_state["session_ok_dims"] = ok
+        st.session_state["submit_count"] = st.session_state["submit_count"] + 1
+
+    # ── REFUSE: block, tell user exactly what to fill in ─────
     if gate.decision == "REFUSE":
         gf_engine.log_submission(gate, profile_meta, ai_generated=False)
-        st.warning(t[gate.refuse_key])
-        # Experiment: call ungated AI to show what it WOULD have returned
-        result_ungated = None
-        with st.spinner("🔬 " + ("模拟无治理 AI 中…" if lang == "中文" else "Simulating ungoverned AI…")):
-            try:
-                _msg = client.messages.create(
-                    model="claude-sonnet-4-6", max_tokens=512,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                _raw = _msg.content[0].text.replace("```json", "").replace("```", "").strip()
-                result_ungated = json.loads(_raw)
-            except Exception:
-                pass
-        _render_experiment_panel(gate, eligible_map, result_ungated, None, t, lang)
+        _update_session_memory(gate)
+        _render_experiment_panel(gate, eligible_map, None, None, t, lang)
         st.stop()
 
-    # ── CLARIFY: show hint, proceed ───────────────────────
-    if gate.decision == "CLARIFY":
-        st.info(t[gate.clarify_key])
+    # ── CLARIFY: proceed silently (hint shown in result panel) ─
+    # (no st.info — the banner inside _render_experiment_panel handles it)
 
     # ── Paywall check (AFTER governance, BEFORE AI call) ──
     if not st.session_state.is_pro and st.session_state.gen_count >= FREE_LIMIT:
         gf_engine.log_submission(gate, profile_meta, ai_generated=False)
-        st.warning(f"**{t['paywall_title']}**\n\n"
-                   + t["paywall_used"].format(n=st.session_state.gen_count)
-                   + "\n\n" + t["paywall_body"])
+        _update_session_memory(gate)
+        st.markdown(
+            "<div style='border:3px solid #f59e0b;background:linear-gradient(135deg,#0d0a00,#1c1000);"
+            "padding:16px 20px;box-shadow:5px 5px 0 #451a03;margin:12px 0'>"
+            "<div style='font-family:\"Press Start 2P\",monospace;font-size:9px;"
+            f"color:#f59e0b;margin-bottom:8px'>🔓 {t['paywall_title']}</div>"
+            f"<div style='font-family:\"Courier New\",monospace;font-size:12px;"
+            f"color:#d97706;line-height:1.7'>{t['paywall_body']}</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
         st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
         st.stop()
 
@@ -812,14 +1644,14 @@ Respond ONLY with valid JSON (no markdown):
 
             # ── Increment usage counter ───────────────────
             st.session_state.gen_count += 1
-            gf_engine.log_submission(gate, profile_meta, ai_generated=True)
+            # Note: log_submission is called below — after overlap_rate is known for PASS,
+            # or immediately here for CLARIFY (no ungated call, so no overlap to compute).
 
-            # ── Render results ────────────────────────────
+            # ── Render results based on gate decision ─────
             if result.get("warning"):
                 st.warning(result["warning"])
-            st.info(result.get("summary", ""))
 
-            # Prerequisite conflicts
+            # Prerequisite conflicts (full-width)
             conflict_lines = []
             for s in result.get("selections", []):
                 code = s.get("code", "")
@@ -827,70 +1659,251 @@ Respond ONLY with valid JSON (no markdown):
                 unmet = [p for p in meta.get("prereqs", []) if p not in completed_codes]
                 if unmet:
                     name = eligible_map.get(code, {}).get("name", code)
-                    conflict_lines.append(
-                        f"**{code} {name}** — {t['prereq_label']}: {', '.join(unmet)}"
-                    )
+                    conflict_lines.append(f"**{code} {name}** — {t['prereq_label']}: {', '.join(unmet)}")
             if conflict_lines:
-                st.warning(
-                    t["conflict_title"] + "\n\n" + t["conflict_body"] + "\n\n" +
-                    "\n\n".join(f"- {l}" for l in conflict_lines)
+                st.warning(t["conflict_title"] + "\n\n" + t["conflict_body"] + "\n\n" + "\n\n".join(f"- {l}" for l in conflict_lines))
+
+            # ── Helper: render full course cards ──────────
+            def _render_cards(res, eligible_map, completed_codes, t, cn, dec_color_r):
+                priority_map = t["priority_map"]
+                valid_shown  = 0
+                if res.get("summary"):
+                    st.markdown(
+                        f"<div style='font-family:\"Courier New\",monospace;font-size:11px;"
+                        f"color:{dec_color_r};padding:6px 10px;background:#0d0d1f;"
+                        f"border-left:3px solid {dec_color_r};margin-bottom:12px'>"
+                        f"{res['summary']}</div>",
+                        unsafe_allow_html=True,
+                    )
+                for s in res.get("selections", []):
+                    code   = s.get("code", "")
+                    course = eligible_map.get(code)
+                    if not course:
+                        continue
+                    valid_shown += 1
+                    label    = priority_map.get(s.get("priority", "optional"), priority_map["optional"])
+                    meta     = COURSE_META.get(code, {})
+                    prereqs  = ", ".join(meta["prereqs"]) if meta.get("prereqs") else t["prereq_none"]
+                    workload = meta.get("workload", "—")
+                    has_exam = (t["final_yes"] if meta.get("has_final")
+                                else t["final_no"] if "has_final" in meta else "—")
+                    with st.container(border=True):
+                        ca, cb = st.columns([4, 1])
+                        with ca:
+                            st.markdown(f"**{label}**")
+                            st.markdown(f"#### {course['code']} · {course['name']}")
+                            st.write(s.get("reason", ""))
+                            st.markdown(
+                                f"<small>🔗 **{t['prereq_label']}:** {prereqs} &nbsp;|&nbsp; "
+                                f"⏱ **{t['workload_label']}:** {workload} &nbsp;|&nbsp; "
+                                f"📝 **{t['final_label']}:** {has_exam}</small>",
+                                unsafe_allow_html=True,
+                            )
+                        with cb:
+                            st.link_button(t["handbook_btn"], course["url"], use_container_width=True)
+                if valid_shown == 0:
+                    st.error(t["no_valid_courses"])
+
+            dec_color_r = {"PASS": "#22c55e", "CLARIFY": "#f59e0b"}[gate.decision]
+
+            # ── Build context strings for both columns ────
+            _missing_zh, _missing_en = [], []
+            if gate.cq.ordering  == "DEFECT": _missing_zh.append("学分信息");  _missing_en.append("credit info")
+            if gate.cq.robustness== "DEFECT": _missing_zh.append("补充说明");  _missing_en.append("extra notes")
+            _used_zh, _used_en = [], []
+            if gate.cq.relevance == "OK" and specs:
+                _used_zh.append("专业：" + " & ".join(specs))
+                _used_en.append("spec: " + " & ".join(specs))
+            if gate.cq.coverage  == "OK" and all_goals:
+                _g = "、".join(all_goals[:2]) + ("…" if len(all_goals)>2 else "")
+                _used_zh.append(f"目标：{_g}")
+                _used_en.append("goals: " + ", ".join(all_goals[:2]) + ("…" if len(all_goals)>2 else ""))
+            if gate.cq.robustness== "OK" and notes.strip():
+                _used_zh.append("备注已纳入"); _used_en.append("notes included")
+            why_bad  = ("没拿到「"+"」「".join(_missing_zh)+"」，AI 只能瞎猜" if _missing_zh else "无目标/专业信息") if cn \
+                       else ("No "+" / ".join(_missing_en)+" — AI is just guessing" if _missing_en else "No profile info")
+            why_good = ("基于 "+"，".join(_used_zh)+" 生成" if _used_zh else "已综合你的信息生成") if cn \
+                       else ("Built from: "+"; ".join(_used_en) if _used_en else "Generated from your full profile")
+
+            # ── Random student character ──────────────────
+            st.markdown(
+                _render_result_char(seed=st.session_state.gen_count, cn=cn),
+                unsafe_allow_html=True,
+            )
+
+            # ── GateFix banner (full-width, always) ──────
+            _render_experiment_panel(gate, eligible_map, None, result, t, lang)
+
+            if gate.decision == "CLARIFY":
+                # Log here — no ungated call, no overlap_rate
+                gf_engine.log_submission(gate, profile_meta, ai_generated=True)
+                _update_session_memory(gate)
+                # Single column — best result with current info, no comparison
+                st.markdown(
+                    f"<div style='font-family:\"Courier New\",monospace;font-size:11px;"
+                    f"color:{dec_color_r};padding:6px 10px;background:#0d0d1f;"
+                    f"border-left:3px solid {dec_color_r};margin-bottom:4px'>"
+                    f"↑ {why_good}</div>",
+                    unsafe_allow_html=True,
                 )
+                _render_cards(result, eligible_map, completed_codes, t, cn, dec_color_r)
 
-            priority_map = t["priority_map"]
-            valid_shown  = 0
-            for s in result.get("selections", []):
-                code   = s.get("code", "")
-                course = eligible_map.get(code)
-                if not course:
-                    continue
-                valid_shown += 1
-                label    = priority_map.get(s.get("priority", "optional"), priority_map["optional"])
-                meta     = COURSE_META.get(code, {})
-                prereqs  = ", ".join(meta["prereqs"]) if meta.get("prereqs") else t["prereq_none"]
-                workload = meta.get("workload", "—")
-                has_exam = (t["final_yes"] if meta.get("has_final")
-                            else t["final_no"] if "has_final" in meta else "—")
+            else:  # PASS — two-column comparison
+                result_ungated = None
+                with st.spinner("🔬 " + ("对比无治理版本中…" if lang == "中文" else "Comparing ungoverned version…")):
+                    try:
+                        _ug_msg = client.messages.create(
+                            model="claude-sonnet-4-6", max_tokens=512,
+                            messages=[{"role": "user", "content": prompt}],
+                        )
+                        _ug_raw = _ug_msg.content[0].text.replace("```json","").replace("```","").strip()
+                        result_ungated = json.loads(_ug_raw)
+                    except Exception:
+                        result_ungated = result
 
-                with st.container(border=True):
-                    ca, cb = st.columns([4, 1])
-                    with ca:
-                        st.markdown(f"**{label}**")
-                        st.markdown(f"#### {course['code']} · {course['name']}")
-                        st.write(s.get("reason", ""))
+                # ── Log with overlap_rate for V3 governance value analysis ──
+                _gov_codes = {s["code"] for s in result.get("selections", [])}
+                _ung_codes = {s["code"] for s in (result_ungated or {}).get("selections", [])}
+                _overlap   = len(_gov_codes & _ung_codes) / max(len(_gov_codes), 1)
+                profile_meta["overlap_rate"] = round(_overlap, 3)
+                gf_engine.log_submission(gate, profile_meta, ai_generated=True)
+                _update_session_memory(gate)
+
+                col_l, col_r = st.columns(2, gap="medium")
+
+                with col_l:
+                    st.markdown(
+                        f"<div style='font-family:\"Press Start 2P\",monospace;font-size:8px;"
+                        f"color:#6b7280;margin-bottom:6px'>🎲 {'拉胯版' if cn else 'Blind guess'}</div>"
+                        f"<div style='font-family:\"Courier New\",monospace;font-size:11px;"
+                        f"color:#ef4444;padding:5px 8px;background:#1a0505;"
+                        f"border-left:3px solid #7f1d1d;margin-bottom:10px'>⚠ {why_bad}</div>",
+                        unsafe_allow_html=True,
+                    )
+                    for s in (result_ungated or {}).get("selections", [])[:4]:
+                        code   = s.get("code", "")
+                        course = eligible_map.get(code)
+                        name   = course["name"] if course else code
+                        reason = s.get("reason", "")
                         st.markdown(
-                            f"<small>🔗 **{t['prereq_label']}:** {prereqs} &nbsp;|&nbsp; "
-                            f"⏱ **{t['workload_label']}:** {workload} &nbsp;|&nbsp; "
-                            f"📝 **{t['final_label']}:** {has_exam}</small>",
+                            f"""<div style="border:1px solid #374151;padding:10px 12px;
+                                           margin-bottom:8px;background:#0d0d1f">
+  <div style="font-family:'Courier New',monospace;font-size:12px;
+              color:#6b7280;margin-bottom:4px">
+    <code style="background:#1f2937;padding:2px 5px;color:#94a3b8">{code}</code>&nbsp;{name}
+  </div>
+  <div style="font-size:11px;color:#4b5563;line-height:1.5">{reason[:80]+'…' if len(reason)>80 else reason}</div>
+</div>""",
                             unsafe_allow_html=True,
                         )
-                    with cb:
-                        st.link_button(t["handbook_btn"], course["url"],
-                                       use_container_width=True)
+                    if result_ungated and result_ungated.get("summary"):
+                        st.markdown(
+                            f"<div style='font-size:11px;color:#4b5563;margin-top:6px;"
+                            f"font-style:italic'>{result_ungated['summary']}</div>",
+                            unsafe_allow_html=True,
+                        )
 
-            if valid_shown == 0:
-                st.error(t["no_valid_courses"])
+                with col_r:
+                    st.markdown(
+                        f"<div style='font-family:\"Press Start 2P\",monospace;font-size:8px;"
+                        f"color:{dec_color_r};margin-bottom:6px'>🎯 {'遥遥领先版' if cn else 'Smart pick'}</div>"
+                        f"<div style='font-family:\"Courier New\",monospace;font-size:11px;"
+                        f"color:{dec_color_r};padding:5px 8px;background:#021a0a;"
+                        f"border-left:3px solid {dec_color_r};margin-bottom:10px'>↑ {why_good}</div>",
+                        unsafe_allow_html=True,
+                    )
+                    _render_cards(result, eligible_map, completed_codes, t, cn, dec_color_r)
 
-            # ── Post-generation paywall teaser (blur gate) ─
+            # ── Post-generation paywall teaser ────────────
             remaining_after = max(0, FREE_LIMIT - st.session_state.gen_count)
             if not st.session_state.is_pro and remaining_after == 0:
                 st.divider()
                 st.markdown(
-                    "<div style='filter:blur(4px);opacity:0.4;pointer-events:none'>"
-                    "🔒 职业路径模拟 · WAM 提升分析 · 论文研究路径规划 · 深度选课报告..."
+                    "<div style='border:3px solid #f59e0b;background:linear-gradient(135deg,#0d0a00,#1c1000);"
+                    "padding:16px 20px;box-shadow:5px 5px 0 #451a03;margin:12px 0'>"
+                    "<div style='font-family:\"Press Start 2P\",monospace;font-size:9px;"
+                    f"color:#f59e0b;margin-bottom:8px'>🔓 {t['paywall_title']}</div>"
+                    f"<div style='font-family:\"Courier New\",monospace;font-size:12px;"
+                    f"color:#d97706;line-height:1.7'>{t['paywall_body']}</div>"
                     "</div>",
                     unsafe_allow_html=True,
                 )
-                st.warning(
-                    f"**{t['paywall_title']}**\n\n"
-                    + t["paywall_body"]
-                )
                 st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
 
-            # ── GateFix experiment panel (CLARIFY / PASS) ─
-            # For CLARIFY/PASS the governed result IS the AI result;
-            # the ungated column shows it WITHOUT the governance annotation,
-            # demonstrating what a pure AI response looks like with no quality check.
-            _render_experiment_panel(gate, eligible_map, result, result, t, lang)
+            # ── Micro-feedback widget ──────────────────────────────────────
+            st.divider()
+            _fb_key = f"fb_rating_{st.session_state['session_id']}"
+            _fb_comment_key = f"fb_comment_{st.session_state['session_id']}"
+            _fb_done_key = f"fb_done_{st.session_state['session_id']}"
+
+            if not st.session_state.get(_fb_done_key):
+                # Header
+                st.markdown(
+                    f"<div style='font-family:\"Press Start 2P\",monospace;font-size:8px;"
+                    f"color:#818cf8;margin-bottom:4px'>{t['fb_prompt']}</div>"
+                    f"<div style='font-family:\"Courier New\",monospace;font-size:11px;"
+                    f"color:#4b5563;margin-bottom:12px'>{t['fb_sub']}</div>",
+                    unsafe_allow_html=True,
+                )
+                _fb_col1, _fb_col2, _fb_col3 = st.columns(3)
+                _current_rating = st.session_state.get(_fb_key)
+
+                def _make_fb_btn(col, label, rating_val):
+                    active = (_current_rating == rating_val)
+                    with col:
+                        if st.button(
+                            label,
+                            key=f"fb_btn_{rating_val}_{st.session_state['session_id']}",
+                            use_container_width=True,
+                            type="primary" if active else "secondary",
+                        ):
+                            st.session_state[_fb_key] = rating_val
+                            st.rerun()
+
+                _make_fb_btn(_fb_col1, t["fb_bad"],   "bad")
+                _make_fb_btn(_fb_col2, t["fb_ok"],    "ok")
+                _make_fb_btn(_fb_col3, t["fb_great"], "great")
+
+                # Comment box — always visible, contextual label after rating chosen
+                _thanks_map = {
+                    "bad":   t["fb_thanks_bad"],
+                    "ok":    t["fb_thanks_ok"],
+                    "great": t["fb_thanks_great"],
+                }
+                _comment_label = _thanks_map.get(_current_rating, t["fb_prompt"])
+                if _current_rating:
+                    st.markdown(
+                        f"<div style='font-size:11px;color:#22c55e;margin:8px 0 2px 0'>"
+                        f"{_comment_label}</div>",
+                        unsafe_allow_html=True,
+                    )
+                st.text_input(
+                    "　",
+                    placeholder=t["fb_comment_ph"],
+                    key=_fb_comment_key,
+                    label_visibility="collapsed",
+                )
+                if _current_rating:
+                    if st.button(
+                        t["fb_submit"],
+                        key=f"fb_submit_{st.session_state['session_id']}",
+                        type="primary",
+                    ):
+                        _log_feedback(
+                            rating=_current_rating,
+                            comment=st.session_state.get(_fb_comment_key, ""),
+                            session_id=st.session_state["session_id"],
+                            gate_decision=gate.decision,
+                            lang=lang,
+                        )
+                        st.session_state[_fb_done_key] = True
+                        st.rerun()
+            else:
+                st.markdown(
+                    f"<div style='font-family:\"Courier New\",monospace;font-size:12px;"
+                    f"color:#22c55e;padding:8px 0'>{t['fb_done']}</div>",
+                    unsafe_allow_html=True,
+                )
 
         except Exception as e:
             st.error(f"Error: {e}")
@@ -900,12 +1913,4 @@ Respond ONLY with valid JSON (no markdown):
 # ════════════════════════════════════════════════════════
 
 st.divider()
-c_foot, c_fb = st.columns([3, 1])
-with c_foot:
-    st.caption(t["footer"])
-with c_fb:
-    st.link_button(
-        t["feedback_btn"],
-        "https://docs.google.com/forms/d/e/1FAIpQLSe_YdjLFQOtPsEzV5n5Zdi1jPfq35Nk3cgoNESinbCEqFzNhw/viewform",
-        use_container_width=True,
-    )
+st.caption(t["footer"])

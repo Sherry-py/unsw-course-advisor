@@ -141,6 +141,11 @@ def log_submission(gate: GateResult, profile: dict, ai_generated: bool):
         "has_notes":      profile.get("has_notes", False),
         "load":           profile.get("load", ""),
         "lang":           profile.get("lang", ""),
+        # Memory Layer fields — session-level tracking
+        "session_id":             profile.get("session_id", ""),
+        "submit_count":           profile.get("submit_count", 0),
+        "counterfactual_decision":profile.get("counterfactual_decision", ""),
+        "overlap_rate":           profile.get("overlap_rate", None),
     }
     try:
         with open(LOG_PATH, "a", encoding="utf-8") as f:
