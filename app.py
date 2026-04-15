@@ -206,6 +206,13 @@ hr {
   padding: 8px !important;
 }
 
+/* ── Hide "Select all" in multiselect dropdowns ── */
+[data-testid="stMultiSelectSelectAll"],
+[data-testid="stMultiSelectCheckAll"],
+[data-baseweb="menu"] li[role="option"]:first-child:has(input[type="checkbox"]:indeterminate) {
+  display: none !important;
+}
+
 /* ── BaseWeb dropdown overlay (multiselect / selectbox menus) ── */
 [data-baseweb="popover"] > div,
 [data-baseweb="popover"] {
