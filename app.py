@@ -237,6 +237,15 @@ hr {
   display: none !important;
 }
 
+/* ── Hide Select All ghost space ── */
+[data-baseweb="popover"] [data-baseweb="input"],
+[data-baseweb="popover"] [data-baseweb="input"] > div,
+[data-baseweb="popover"] input[type="text"] {
+  background: #0d0d1f !important;
+  border-color: #4f46e5 !important;
+  color: #c7d2fe !important;
+}
+
 /* ── BaseWeb dropdown overlay (multiselect / selectbox menus) ── */
 [data-baseweb="popover"] > div,
 [data-baseweb="popover"] {
