@@ -154,9 +154,9 @@ def log_submission(gate: GateResult, profile: dict, ai_generated: bool):
     except Exception:
         pass
 
-    # Dual-write to Google Sheets (cloud persistence)
+    # Dual-write to Supabase (cloud persistence)
     try:
-        import sheets_logger
-        sheets_logger.append_record("gatefix_log", record)
+        import supabase_logger
+        supabase_logger.append_record("gatefix_log", record)
     except Exception:
         pass

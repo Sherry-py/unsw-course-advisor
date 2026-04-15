@@ -108,12 +108,12 @@ if not st.session_state.admin_auth:
                 st.error("Incorrect password.")
     st.stop()
 
-# ── Load data (Sheets → local fallback) ───────────────────────────
+# ── Load data (Supabase → local fallback) ─────────────────────────
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 try:
-    import sheets_logger
-    records = sheets_logger.read_records("gatefix_log")
-    _source = f"Google Sheets ({len(records)} records)"
+    import supabase_logger
+    records = supabase_logger.read_records("gatefix_log")
+    _source = f"Supabase ({len(records)} records)"
 except Exception:
     records = []
     _source = None
@@ -591,7 +591,7 @@ with st.expander("Raw data table"):
 st.markdown("## 8. User Feedback")
 
 try:
-    fb_records = sheets_logger.read_records("feedback_log")
+    fb_records = supabase_logger.read_records("feedback_log")
 except Exception:
     fb_records = []
 
