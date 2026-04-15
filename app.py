@@ -40,39 +40,42 @@ st.set_page_config(
     layout="centered",
 )
 
-# ── Fix multiselect dropdowns via JS MutationObserver ────────────────────────
+# ── Fix multiselect dropdowns via JS style injection ─────────────────────────
 import streamlit.components.v1 as _components
 _components.html("""
 <script>
   (function() {
-    var DARK = '#0d0d1f';
-    var TEXT = '#c7d2fe';
-    function fixDropdowns() {
-      try {
-        var doc = window.parent.document;
-        // Hide "Select all"
+    try {
+      var doc = window.parent.document;
+      // Inject a style tag directly into the parent document
+      var s = doc.getElementById('__multiselect_fix__');
+      if (!s) {
+        s = doc.createElement('style');
+        s.id = '__multiselect_fix__';
+        s.textContent = [
+          '[data-baseweb="popover"] > div > div:first-child {',
+          '  background-color: #0d0d1f !important;',
+          '}',
+          '[data-baseweb="popover"] > div > div:first-child > div,',
+          '[data-baseweb="popover"] > div > div:first-child input,',
+          '[data-baseweb="popover"] > div > div:first-child span {',
+          '  background-color: #0d0d1f !important;',
+          '  color: #c7d2fe !important;',
+          '}',
+        ].join('\\n');
+        doc.head.appendChild(s);
+      }
+      // Hide "Select all"
+      function hideSelectAll() {
         doc.querySelectorAll('li[role="option"]').forEach(function(li) {
           if ((li.innerText || li.textContent || '').trim().toLowerCase() === 'select all') {
             li.style.display = 'none';
           }
         });
-        // Fix white search box inside each open popover
-        doc.querySelectorAll('[data-baseweb="popover"]').forEach(function(pop) {
-          pop.querySelectorAll('div, input').forEach(function(el) {
-            var bg = window.parent.getComputedStyle(el).backgroundColor;
-            if (bg === 'rgb(255, 255, 255)' || bg === 'rgba(255, 255, 255, 1)') {
-              el.style.setProperty('background-color', DARK, 'important');
-              el.style.setProperty('color', TEXT, 'important');
-            }
-          });
-        });
-      } catch(e) {}
-    }
-    new MutationObserver(fixDropdowns).observe(
-      window.parent.document.body,
-      {childList: true, subtree: true, attributes: true}
-    );
-    fixDropdowns();
+      }
+      new MutationObserver(hideSelectAll).observe(doc.body, {childList:true, subtree:true});
+      hideSelectAll();
+    } catch(e) {}
   })();
 </script>
 """, height=0, scrolling=False)
