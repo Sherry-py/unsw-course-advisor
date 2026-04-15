@@ -40,13 +40,18 @@ def _log_feedback(rating: str, comment: str, session_id: str, gate_decision: str
                 json=record,
                 timeout=5,
             )
-            # Store debug info in session state so we can surface it
-            _st2.session_state["_fb_debug"] = f"HTTP {_resp.status_code}: {_resp.text[:200]}"
+            _debug_msg = f"feedback_log HTTP {_resp.status_code}: {_resp.text[:300]}"
+            print(_debug_msg)  # visible in Streamlit Cloud logs
+            _st2.session_state["_fb_debug"] = _debug_msg
         else:
-            _st2.session_state["_fb_debug"] = f"SKIP: url={bool(_sb_url)} key={bool(_sb_key)}"
+            _msg = f"feedback_log SKIP: url={bool(_sb_url)} key={bool(_sb_key)}"
+            print(_msg)
+            _st2.session_state["_fb_debug"] = _msg
     except Exception as _e:
         import streamlit as _st3
-        _st3.session_state["_fb_debug"] = f"EXC: {_e}"
+        _msg = f"feedback_log EXC: {type(_e).__name__}: {_e}"
+        print(_msg)
+        _st3.session_state["_fb_debug"] = _msg
 
 st.set_page_config(
     page_title="UNSW MCom Course Advisor",
