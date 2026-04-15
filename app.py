@@ -40,6 +40,30 @@ st.set_page_config(
     layout="centered",
 )
 
+# ── Hide "Select all" in multiselect via JS MutationObserver ──────────────────
+import streamlit.components.v1 as _components
+_components.html("""
+<script>
+  (function() {
+    function hideSelectAll() {
+      try {
+        var doc = window.parent.document;
+        doc.querySelectorAll('li[role="option"]').forEach(function(li) {
+          if ((li.innerText || li.textContent || '').trim().toLowerCase() === 'select all') {
+            li.style.display = 'none';
+          }
+        });
+      } catch(e) {}
+    }
+    new MutationObserver(hideSelectAll).observe(
+      window.parent.document.body,
+      {childList: true, subtree: true}
+    );
+    hideSelectAll();
+  })();
+</script>
+""", height=0, scrolling=False)
+
 # ── Pixel town CSS ────────────────────────────────────────
 st.markdown("""
 <style>
