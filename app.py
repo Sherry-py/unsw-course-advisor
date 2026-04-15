@@ -27,6 +27,13 @@ def _log_feedback(rating: str, comment: str, session_id: str, gate_decision: str
     except Exception:
         pass
 
+    # Dual-write to Google Sheets
+    try:
+        import sheets_logger
+        sheets_logger.append_record("feedback_log", record)
+    except Exception:
+        pass
+
 st.set_page_config(
     page_title="UNSW MCom Course Advisor",
     page_icon="🎓",
