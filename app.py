@@ -27,10 +27,10 @@ def _log_feedback(rating: str, comment: str, session_id: str, gate_decision: str
     except Exception:
         pass
 
-    # Dual-write to Google Sheets
+    # Dual-write to Supabase
     try:
-        import sheets_logger
-        sheets_logger.append_record("feedback_log", record)
+        import supabase_logger
+        supabase_logger.append_record("feedback_log", record)
     except Exception:
         pass
 
