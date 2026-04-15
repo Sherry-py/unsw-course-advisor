@@ -5,7 +5,7 @@ Access: /admin — password protected
 """
 
 import streamlit as st
-import json, os, csv, io
+import json, os, sys, csv, io
 from datetime import datetime
 import pandas as pd
 import plotly.graph_objects as go
@@ -108,9 +108,17 @@ if not st.session_state.admin_auth:
                 st.error("Incorrect password.")
     st.stop()
 
-# ── Load data ─────────────────────────────────────────────────────
-records = []
-if os.path.exists(LOG_PATH):
+# ── Load data (Sheets → local fallback) ───────────────────────────
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+try:
+    import sheets_logger
+    records = sheets_logger.read_records("gatefix_log")
+    _source = f"Google Sheets ({len(records)} records)"
+except Exception:
+    records = []
+    _source = None
+
+if not records and os.path.exists(LOG_PATH):
     with open(LOG_PATH, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -119,6 +127,7 @@ if os.path.exists(LOG_PATH):
                     records.append(json.loads(line))
                 except Exception:
                     pass
+    _source = f"local file ({len(records)} records)"
 
 # ── Page header ───────────────────────────────────────────────────
 st.markdown("""
@@ -177,6 +186,8 @@ refuse_n   = decisions.count("REFUSE")
 
 # ── Section 1: Dataset Summary ────────────────────────────────────
 st.markdown("## 1. Dataset Summary")
+if _source:
+    st.caption(f"Data source: {_source}")
 
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Total Submissions", len(records))
@@ -579,8 +590,12 @@ with st.expander("Raw data table"):
 # ── Section 8: User Feedback ───────────────────────────────────────
 st.markdown("## 8. User Feedback")
 
-fb_records = []
-if os.path.exists(FEEDBACK_LOG):
+try:
+    fb_records = sheets_logger.read_records("feedback_log")
+except Exception:
+    fb_records = []
+
+if not fb_records and os.path.exists(FEEDBACK_LOG):
     with open(FEEDBACK_LOG, encoding="utf-8") as _f:
         for _line in _f:
             _line = _line.strip()

@@ -3,3 +3,5 @@ anthropic
 plotly==5.24.1
 narwhals>=1.0.0
 pandas
+gspread
+google-auth
