@@ -237,13 +237,19 @@ hr {
   display: none !important;
 }
 
-/* ── Hide Select All ghost space ── */
-[data-baseweb="popover"] [data-baseweb="input"],
-[data-baseweb="popover"] [data-baseweb="input"] > div,
-[data-baseweb="popover"] input[type="text"] {
+/* ── Fix white search box in multiselect dropdown ── */
+[data-baseweb="select-dropdown"],
+[data-baseweb="select-dropdown"] > div,
+[data-baseweb="popover"] [data-baseweb="base-input"],
+[data-baseweb="popover"] [data-baseweb="base-input"] > div,
+[data-baseweb="popover"] input,
+[data-baseweb="popover"] input + div,
+[data-baseweb="popover"] > div > div:first-child,
+[data-baseweb="popover"] > div > div:first-child > div {
   background: #0d0d1f !important;
-  border-color: #4f46e5 !important;
+  background-color: #0d0d1f !important;
   color: #c7d2fe !important;
+  border-color: #4f46e5 !important;
 }
 
 /* ── BaseWeb dropdown overlay (multiselect / selectbox menus) ── */
