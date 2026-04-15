@@ -1929,55 +1929,32 @@ Respond ONLY with valid JSON (no markdown):
                 _current_rating = st.session_state.get(_fb_key)
 
                 def _make_fb_btn(col, label, rating_val):
-                    active = (_current_rating == rating_val)
                     with col:
                         if st.button(
                             label,
                             key=f"fb_btn_{rating_val}_{st.session_state['session_id']}",
                             use_container_width=True,
-                            type="primary" if active else "secondary",
+                            type="secondary",
                         ):
-                            st.session_state[_fb_key] = rating_val
+                            _log_feedback(
+                                rating=rating_val,
+                                comment=st.session_state.get(_fb_comment_key, ""),
+                                session_id=st.session_state["session_id"],
+                                gate_decision=gate.decision,
+                                lang=lang,
+                            )
+                            st.session_state[_fb_done_key] = True
                             st.rerun()
 
-                _make_fb_btn(_fb_col1, t["fb_bad"],   "bad")
-                _make_fb_btn(_fb_col2, t["fb_ok"],    "ok")
-                _make_fb_btn(_fb_col3, t["fb_great"], "great")
-
-                # Comment box — always visible, contextual label after rating chosen
-                _thanks_map = {
-                    "bad":   t["fb_thanks_bad"],
-                    "ok":    t["fb_thanks_ok"],
-                    "great": t["fb_thanks_great"],
-                }
-                _comment_label = _thanks_map.get(_current_rating, t["fb_prompt"])
-                if _current_rating:
-                    st.markdown(
-                        f"<div style='font-size:11px;color:#22c55e;margin:8px 0 2px 0'>"
-                        f"{_comment_label}</div>",
-                        unsafe_allow_html=True,
-                    )
                 st.text_input(
                     "　",
                     placeholder=t["fb_comment_ph"],
                     key=_fb_comment_key,
                     label_visibility="collapsed",
                 )
-                if _current_rating:
-                    if st.button(
-                        t["fb_submit"],
-                        key=f"fb_submit_{st.session_state['session_id']}",
-                        type="primary",
-                    ):
-                        _log_feedback(
-                            rating=_current_rating,
-                            comment=st.session_state.get(_fb_comment_key, ""),
-                            session_id=st.session_state["session_id"],
-                            gate_decision=gate.decision,
-                            lang=lang,
-                        )
-                        st.session_state[_fb_done_key] = True
-                        st.rerun()
+                _make_fb_btn(_fb_col1, t["fb_bad"],   "bad")
+                _make_fb_btn(_fb_col2, t["fb_ok"],    "ok")
+                _make_fb_btn(_fb_col3, t["fb_great"], "great")
             else:
                 st.markdown(
                     f"<div style='font-family:\"Courier New\",monospace;font-size:12px;"
