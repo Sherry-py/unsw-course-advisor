@@ -1960,15 +1960,15 @@ Respond ONLY with valid JSON (no markdown):
                 _make_fb_btn(_fb_col1, t["fb_bad"],   "bad")
                 _make_fb_btn(_fb_col2, t["fb_ok"],    "ok")
                 _make_fb_btn(_fb_col3, t["fb_great"], "great")
-                # Debug: show Supabase response after a click
-                if st.session_state.get("_fb_debug"):
-                    st.caption(f"🔍 {st.session_state['_fb_debug']}")
             else:
                 st.markdown(
                     f"<div style='font-family:\"Courier New\",monospace;font-size:12px;"
                     f"color:#22c55e;padding:8px 0'>{t['fb_done']}</div>",
                     unsafe_allow_html=True,
                 )
+                # Debug: always show after submit
+                if st.session_state.get("_fb_debug"):
+                    st.caption(f"🔍 {st.session_state['_fb_debug']}")
 
         except Exception as e:
             st.error(f"Error: {e}")
