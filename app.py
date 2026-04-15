@@ -33,15 +33,20 @@ def _log_feedback(rating: str, comment: str, session_id: str, gate_decision: str
         _sb_url = str(_st2.secrets.get("SUPABASE_URL", "")).rstrip("/")
         _sb_key = str(_st2.secrets.get("SUPABASE_KEY", ""))
         if _sb_url and _sb_key:
-            _r.post(
+            _resp = _r.post(
                 f"{_sb_url}/rest/v1/feedback_log",
                 headers={"apikey": _sb_key, "Authorization": f"Bearer {_sb_key}",
                          "Content-Type": "application/json", "Prefer": "return=minimal"},
                 json=record,
                 timeout=5,
             )
-    except Exception:
-        pass
+            # Store debug info in session state so we can surface it
+            _st2.session_state["_fb_debug"] = f"HTTP {_resp.status_code}: {_resp.text[:200]}"
+        else:
+            _st2.session_state["_fb_debug"] = f"SKIP: url={bool(_sb_url)} key={bool(_sb_key)}"
+    except Exception as _e:
+        import streamlit as _st3
+        _st3.session_state["_fb_debug"] = f"EXC: {_e}"
 
 st.set_page_config(
     page_title="UNSW MCom Course Advisor",
@@ -1955,6 +1960,9 @@ Respond ONLY with valid JSON (no markdown):
                 _make_fb_btn(_fb_col1, t["fb_bad"],   "bad")
                 _make_fb_btn(_fb_col2, t["fb_ok"],    "ok")
                 _make_fb_btn(_fb_col3, t["fb_great"], "great")
+                # Debug: show Supabase response after a click
+                if st.session_state.get("_fb_debug"):
+                    st.caption(f"🔍 {st.session_state['_fb_debug']}")
             else:
                 st.markdown(
                     f"<div style='font-family:\"Courier New\",monospace;font-size:12px;"
