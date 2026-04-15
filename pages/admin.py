@@ -590,21 +590,6 @@ with st.expander("Raw data table"):
 # ── Section 8: User Feedback ───────────────────────────────────────
 st.markdown("## 8. User Feedback")
 
-# DEBUG: test write to feedback_log
-import requests as _req2
-_url2 = st.secrets.get("SUPABASE_URL", "")
-_key2 = st.secrets.get("SUPABASE_KEY", "")
-if _url2 and _key2:
-    _tr = _req2.post(
-        f"{str(_url2).rstrip('/')}/rest/v1/feedback_log",
-        headers={"apikey": _key2, "Authorization": f"Bearer {_key2}",
-                 "Content-Type": "application/json", "Prefer": "return=minimal"},
-        json={"id": "debug-fb-001", "timestamp": "2026-01-01T00:00:00Z",
-              "session_id": "debug", "gate_decision": "TEST",
-              "rating": "great", "comment": "debug test", "lang": "中文"},
-        timeout=5,
-    )
-    st.caption(f"DEBUG feedback write: {_tr.status_code} | {_tr.text[:300]}")
 
 try:
     fb_records = supabase_logger.read_records("feedback_log")
