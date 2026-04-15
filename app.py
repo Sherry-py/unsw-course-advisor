@@ -1733,6 +1733,7 @@ Respond ONLY with valid JSON (no markdown):
 
             # ── Increment usage counter ───────────────────
             st.session_state.gen_count += 1
+            st.session_state["last_gate_decision"] = gate.decision
             # Note: log_submission is called below — after overlap_rate is known for PASS,
             # or immediately here for CLARIFY (no ungated call, so no overlap to compute).
 
@@ -1920,64 +1921,62 @@ Respond ONLY with valid JSON (no markdown):
                 )
                 st.link_button(t["paywall_btn"], t["paywall_url"], use_container_width=True)
 
-            # ── Micro-feedback widget ──────────────────────────────────────
-            st.divider()
-            _fb_key = f"fb_rating_{st.session_state['session_id']}"
-            _fb_comment_key = f"fb_comment_{st.session_state['session_id']}"
-            _fb_done_key = f"fb_done_{st.session_state['session_id']}"
-
-            if not st.session_state.get(_fb_done_key):
-                # Header
-                st.markdown(
-                    f"<div style='font-family:\"Press Start 2P\",monospace;font-size:8px;"
-                    f"color:#818cf8;margin-bottom:4px'>{t['fb_prompt']}</div>"
-                    f"<div style='font-family:\"Courier New\",monospace;font-size:11px;"
-                    f"color:#4b5563;margin-bottom:12px'>{t['fb_sub']}</div>",
-                    unsafe_allow_html=True,
-                )
-                _fb_col1, _fb_col2, _fb_col3 = st.columns(3)
-                _current_rating = st.session_state.get(_fb_key)
-
-                def _make_fb_btn(col, label, rating_val):
-                    with col:
-                        if st.button(
-                            label,
-                            key=f"fb_btn_{rating_val}_{st.session_state['session_id']}",
-                            use_container_width=True,
-                            type="secondary",
-                        ):
-                            _log_feedback(
-                                rating=rating_val,
-                                comment=st.session_state.get(_fb_comment_key, ""),
-                                session_id=st.session_state["session_id"],
-                                gate_decision=gate.decision,
-                                lang=lang,
-                            )
-                            st.session_state[_fb_done_key] = True
-                            # No st.rerun() here — button click already triggers rerun,
-                            # and st.rerun() inside try/except gets swallowed as Exception
-
-                st.text_input(
-                    "　",
-                    placeholder=t["fb_comment_ph"],
-                    key=_fb_comment_key,
-                    label_visibility="collapsed",
-                )
-                _make_fb_btn(_fb_col1, t["fb_bad"],   "bad")
-                _make_fb_btn(_fb_col2, t["fb_ok"],    "ok")
-                _make_fb_btn(_fb_col3, t["fb_great"], "great")
-            else:
-                st.markdown(
-                    f"<div style='font-family:\"Courier New\",monospace;font-size:12px;"
-                    f"color:#22c55e;padding:8px 0'>{t['fb_done']}</div>",
-                    unsafe_allow_html=True,
-                )
-                # Debug: always show after submit
-                if st.session_state.get("_fb_debug"):
-                    st.caption(f"🔍 {st.session_state['_fb_debug']}")
-
         except Exception as e:
             st.error(f"Error: {e}")
+
+# ════════════════════════════════════════════════════════
+# MICRO-FEEDBACK WIDGET (outside if submitted — persists across reruns)
+# ════════════════════════════════════════════════════════
+
+if st.session_state.get("gen_count", 0) > 0:
+    _fb_comment_key = f"fb_comment_{st.session_state['session_id']}"
+    _fb_done_key    = f"fb_done_{st.session_state['session_id']}"
+
+    st.divider()
+    if not st.session_state.get(_fb_done_key):
+        st.markdown(
+            f"<div style='font-family:\"Press Start 2P\",monospace;font-size:8px;"
+            f"color:#818cf8;margin-bottom:4px'>{t['fb_prompt']}</div>"
+            f"<div style='font-family:\"Courier New\",monospace;font-size:11px;"
+            f"color:#4b5563;margin-bottom:12px'>{t['fb_sub']}</div>",
+            unsafe_allow_html=True,
+        )
+        _fb_col1, _fb_col2, _fb_col3 = st.columns(3)
+
+        def _make_fb_btn(col, label, rating_val):
+            with col:
+                if st.button(
+                    label,
+                    key=f"fb_btn_{rating_val}_{st.session_state['session_id']}",
+                    use_container_width=True,
+                    type="secondary",
+                ):
+                    _log_feedback(
+                        rating=rating_val,
+                        comment=st.session_state.get(_fb_comment_key, ""),
+                        session_id=st.session_state["session_id"],
+                        gate_decision=st.session_state.get("last_gate_decision", ""),
+                        lang=lang,
+                    )
+                    st.session_state[_fb_done_key] = True
+
+        st.text_input(
+            "　",
+            placeholder=t["fb_comment_ph"],
+            key=_fb_comment_key,
+            label_visibility="collapsed",
+        )
+        _make_fb_btn(_fb_col1, t["fb_bad"],   "bad")
+        _make_fb_btn(_fb_col2, t["fb_ok"],    "ok")
+        _make_fb_btn(_fb_col3, t["fb_great"], "great")
+    else:
+        st.markdown(
+            f"<div style='font-family:\"Courier New\",monospace;font-size:12px;"
+            f"color:#22c55e;padding:8px 0'>{t['fb_done']}</div>",
+            unsafe_allow_html=True,
+        )
+        if st.session_state.get("_fb_debug"):
+            st.caption(f"🔍 {st.session_state['_fb_debug']}")
 
 # ════════════════════════════════════════════════════════
 # FOOTER
@@ -1985,4 +1984,4 @@ Respond ONLY with valid JSON (no markdown):
 
 st.divider()
 st.caption(t["footer"])
-st.caption("v20260415-fix-rerun")
+st.caption("v20260415-fb-fixed")
