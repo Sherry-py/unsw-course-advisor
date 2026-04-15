@@ -830,7 +830,11 @@ T = {
 # ════════════════════════════════════════════════════════
 
 if "gen_count" not in st.session_state:
-    st.session_state.gen_count = 0
+    # Restore from URL param so page refresh doesn't reset the count (soft limit)
+    try:
+        st.session_state.gen_count = max(0, int(st.query_params.get("_gc", 0)))
+    except Exception:
+        st.session_state.gen_count = 0
 if "is_pro" not in st.session_state:
     st.session_state.is_pro = False
 
@@ -1734,6 +1738,8 @@ Respond ONLY with valid JSON (no markdown):
             # ── Increment usage counter ───────────────────
             st.session_state.gen_count += 1
             st.session_state["last_gate_decision"] = gate.decision
+            # Persist count in URL so page refresh doesn't reset it
+            st.query_params["_gc"] = str(st.session_state.gen_count)
             # Note: log_submission is called below — after overlap_rate is known for PASS,
             # or immediately here for CLARIFY (no ungated call, so no overlap to compute).
 
