@@ -1307,7 +1307,7 @@ completed_courses = st.multiselect(
     default=st.session_state["demo_completed"],
     format_func=lambda code: f"{code} · {ALL_COURSES_DICT[code]['name']}",
     placeholder=t["completed_ph"],
-    max_selections=len(ALL_COURSE_CODES),
+    max_selections=50,
 )
 custom_completed_raw = st.text_input(
     label="　",
