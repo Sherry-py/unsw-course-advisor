@@ -393,6 +393,13 @@ li[role="option"][aria-selected="true"] {
 
 FREE_LIMIT = 3  # free AI generations per session
 
+# All valid UOC options (MCom = 96 UOC total, each course = 6 UOC)
+CREDIT_OPTIONS = [
+    "96 UOC", "90 UOC", "84 UOC", "78 UOC", "72 UOC", "66 UOC",
+    "60 UOC", "54 UOC", "48 UOC", "42 UOC", "36 UOC", "30 UOC",
+    "24 UOC", "18 UOC", "12 UOC", "6 UOC",
+]
+
 COURSES = {
     "Accounting": [
         {"code": "ACCT5930", "name": "Financial Accounting",              "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5930"},
@@ -493,6 +500,16 @@ COURSES = {
         {"code": "FINS5535", "name": "Derivatives and Risk Management Techniques", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/FINS5535"},
         {"code": "INFS5929", "name": "Cybersecurity Leadership and Risk Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5929"},
         {"code": "MGMT6005", "name": "Managing Organisational Risk in Global Context", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT6005"},
+    ],
+    "Cybersecurity, Risk and Privacy": [
+        {"code": "INFS5929", "name": "Cybersecurity Leadership and Risk Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5929"},
+        {"code": "LAWS9812", "name": "Introduction to Law and Policy for Cyber Security", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/LAWS9812"},
+        {"code": "INFS5888", "name": "Responsible Information Technology Management: AI and Beyond", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5888"},
+        {"code": "RISK5001", "name": "Fundamentals of Risk and Risk Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/RISK5001"},
+        {"code": "MGMT6005", "name": "Managing Organisational Risk in Global Context", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/MGMT6005"},
+        {"code": "INFS5731", "name": "Information Systems Strategy and Management", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5731"},
+        {"code": "ACCT5919", "name": "Business Risk Management",          "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ACCT5919"},
+        {"code": "INFS5631", "name": "Managing Digital Innovations and Emerging Technologies", "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/INFS5631"},
     ],
     "Strategy and Innovation": [
         {"code": "ECON5103", "name": "Business Economics",                "url": "https://www.handbook.unsw.edu.au/postgraduate/courses/2026/ECON5103"},
@@ -1038,7 +1055,7 @@ def _load_demo(scenario_key: str):
     st.session_state["demo_goals"]     = s["goals"]
     st.session_state["demo_specs"]     = s["specs"]
     st.session_state["demo_wam"]       = s["wam"]
-    st.session_state["demo_credits"]   = ["96 UOC", "72 UOC", "48 UOC", "36 UOC", "24 UOC", "12 UOC"].index(s["credits"])
+    st.session_state["demo_credits"]   = CREDIT_OPTIONS.index(s["credits"]) if s["credits"] in CREDIT_OPTIONS else CREDIT_OPTIONS.index("48 UOC")
     st.session_state["demo_completed"] = s["completed"]
     st.session_state["demo_notes"]     = s["notes"]
     st.session_state["active_demo"]    = scenario_key
@@ -1366,7 +1383,7 @@ with c3:
                            value=st.session_state["demo_wam"])
 with c4:
     credits = st.selectbox(t["uoc_label"],
-                           ["96 UOC", "72 UOC", "48 UOC", "36 UOC", "24 UOC", "12 UOC"],
+                           CREDIT_OPTIONS,
                            index=st.session_state["demo_credits"])
 
 completed_courses = st.multiselect(
@@ -1937,8 +1954,6 @@ if st.session_state.get("gen_count", 0) > 0:
             f"color:#4b5563;margin-bottom:12px'>{t['fb_sub']}</div>",
             unsafe_allow_html=True,
         )
-        _fb_col1, _fb_col2, _fb_col3 = st.columns(3)
-
         def _make_fb_btn(col, label, rating_val):
             with col:
                 if st.button(
@@ -1962,6 +1977,7 @@ if st.session_state.get("gen_count", 0) > 0:
             key=_fb_comment_key,
             label_visibility="collapsed",
         )
+        _fb_col1, _fb_col2, _fb_col3 = st.columns(3)
         _make_fb_btn(_fb_col1, t["fb_bad"],   "bad")
         _make_fb_btn(_fb_col2, t["fb_ok"],    "ok")
         _make_fb_btn(_fb_col3, t["fb_great"], "great")
