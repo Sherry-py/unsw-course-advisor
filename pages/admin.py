@@ -87,7 +87,7 @@ hr { border: none; border-top: 1px solid #ddd !important; margin: 20px 0 !import
 """, unsafe_allow_html=True)
 
 LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "gatefix_log.jsonl")
-PASSWORD = "REDACTED-see-st-secrets"
+PASSWORD = str(st.secrets.get("ADMIN_PASSWORD", ""))
 
 # ── Auth ──────────────────────────────────────────────────────────
 if "admin_auth" not in st.session_state:
@@ -101,7 +101,7 @@ if not st.session_state.admin_auth:
         st.caption("Restricted access — research personnel only")
         pwd = st.text_input("Password", type="password")
         if st.button("Sign in", use_container_width=True):
-            if pwd == PASSWORD:
+            if PASSWORD and pwd == PASSWORD:
                 st.session_state.admin_auth = True
                 st.rerun()
             else:
